@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.env
+config/secrets.js
+*.tmp
+.DS_Store
+dist/
+build/
+coverage/

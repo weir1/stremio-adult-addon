@@ -1,0 +1,23 @@
+{
+  "name": "stremio-adult-addon",
+  "version": "1.0.0",
+  "description": "Stremio addon for adult content with TorBox integration",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "stremio-addon-sdk": "^1.6.6",
+    "express": "^4.18.2",
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.10",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "Weir",
+  "license": "MIT"
+}
