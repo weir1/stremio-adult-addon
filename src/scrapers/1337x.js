@@ -6,6 +6,26 @@ class Scraper1337x {
         this.baseUrl = 'https://1337x.to';
     }
 
+    // Standardized ID generation
+    generateTorrentId(name, link) {
+        const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+        const cleanLink = link.replace(/[^a-zA-Z0-9]/g, '');
+        const combined = cleanName + '_' + cleanLink;
+        return Buffer.from(combined).toString('base64')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .substring(0, 20);
+    }
+
+    // Decode HTML entities in URLs
+    decodeHtmlEntities(str) {
+        return str
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+    }
+
     async scrapeCategory(categoryPath) {
         try {
             const url = `${this.baseUrl}${categoryPath}`;
@@ -21,28 +41,21 @@ class Scraper1337x {
             const $ = cheerio.load(response.data);
             const torrents = [];
             
-            // Find the table body and iterate through rows
             $('table tbody tr').each((index, element) => {
                 try {
                     const $row = $(element);
                     
-                    // Extract name and link from first column
                     const nameLink = $row.find('td:nth-child(1) a:last-child');
                     const name = nameLink.text().trim();
                     const link = nameLink.attr('href');
                     
-                    // Extract seeders and leechers  
                     const seeders = parseInt($row.find('td:nth-child(2)').text().trim()) || 0;
                     const leechers = parseInt($row.find('td:nth-child(3)').text().trim()) || 0;
-                    
-                    // Extract size from the size column
                     const sizeText = $row.find('td:nth-child(5)').text().trim();
-                    
-                    // Extract uploader
                     const uploader = $row.find('td:nth-child(6)').text().trim();
                     
                     if (name && link && seeders > 0) {
-                        const torrentId = Buffer.from(link).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+                        const torrentId = this.generateTorrentId(name, link);
                         
                         torrents.push({
                             id: torrentId,
@@ -53,14 +66,18 @@ class Scraper1337x {
                             size: sizeText,
                             uploader: uploader
                         });
+                        
+                        if (index < 3) {
+                            console.log(`🆔 Generated ID: ${torrentId} for: ${name.substring(0, 30)}`);
+                        }
                     }
                 } catch (err) {
-                    console.log('Error parsing row:', err.message);
+                    // Skip problematic rows
                 }
             });
             
             console.log(`Found ${torrents.length} torrents from ${url}`);
-            return torrents.slice(0, 20); // Limit to 20 results
+            return torrents.slice(0, 20);
             
         } catch (error) {
             console.error('Scraping error for', categoryPath, ':', error.message);
@@ -89,10 +106,15 @@ class Scraper1337x {
             
             const $ = cheerio.load(response.data);
             
-            // Extract magnet link
-            const magnetLink = $('a[href^="magnet:"]').attr('href');
+            // Extract magnet link and decode HTML entities
+            let magnetLink = $('a[href^="magnet:"]').attr('href');
+            if (magnetLink) {
+                magnetLink = this.decodeHtmlEntities(magnetLink);
+                console.log('✅ Magnet link found and decoded!');
+            } else {
+                console.log('❌ No magnet link found');
+            }
             
-            // Extract description
             const description = $('.torrent-detail-page .clearfix').text().trim() || 
                               $('.box-info-detail').text().trim() || 
                               'No description available';
