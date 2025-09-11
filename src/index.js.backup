@@ -1,0 +1,287 @@
+const { addonBuilder, getRouter } = require('stremio-addon-sdk');
+const express = require('express');
+const Scraper1337x = require('./scrapers/1337x');
+const TorBoxService = require('./services/torboxService');
+const ConfigService = require('./services/configService');
+
+const scraper = new Scraper1337x();
+
+// Caches
+let trendingCache = [];
+let popularCache = [];
+let lastCacheUpdate = 0;
+const CACHE_DURATION = 5 * 60 * 1000;
+const ID_PREFIXES = ['T25','TW9','TWl','UG9','Qnl','TW9t'];
+
+async function getCachedTorrents(kind) {
+  const now = Date.now();
+  if (now - lastCacheUpdate > CACHE_DURATION) {
+    console.log('🔄 Refreshing torrent cache...');
+    try {
+      trendingCache = await scraper.scrapeTrending();
+      popularCache  = await scraper.scrapePopular();
+      lastCacheUpdate = now;
+      console.log(`📦 Cache updated: ${trendingCache.length} trending, ${popularCache.length} popular`);
+      if (trendingCache.length) console.log('🆔 Sample trending IDs:', trendingCache.slice(0,3).map(t => t.id));
+    } catch (error) {
+      console.error('❌ Cache update failed:', error);
+    }
+  }
+  return kind === 'trending' ? trendingCache : popularCache;
+}
+
+// FIXED: Proper resource-level idPrefixes for meta and stream
+const manifest = {
+  id: 'org.stremio.adult.addon',
+  version: '1.2.1',
+  name: 'Adult Content Addon',
+  description: 'Stream adult content from 1337x with TorBox integration. Configure with your TorBox API key for enhanced streaming.',
+  resources: [
+    'catalog',
+    { name: 'meta', types: ['movie'], idPrefixes: ID_PREFIXES },
+    { name: 'stream', types: ['movie'], idPrefixes: ID_PREFIXES }
+  ],
+  types: ['movie'],
+  idPrefixes: ID_PREFIXES,
+  catalogs: [
+    { type: 'movie', id: 'adult-trending', name: '🔥 Trending Adult' },
+    { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Adult' }
+  ],
+  behaviorHints: {
+    configurable: true,
+    configurationRequired: false
+  },
+  config: [
+    {
+      key: 'torboxApiKey',
+      type: 'text',
+      title: 'TorBox API Key',
+      required: false,
+      default: ''
+    },
+    {
+      key: 'enableTorBox',
+      type: 'boolean', 
+      title: 'Enable TorBox Integration',
+      required: false,
+      default: false
+    }
+  ]
+};
+
+const builder = new addonBuilder(manifest);
+
+// Catalog Handler
+builder.defineCatalogHandler(async ({ type, id, extra }) => {
+  console.log('📋 Catalog request:', { type, id, extra });
+  if (type !== 'movie') return { metas: [] };
+  
+  try {
+    let torrents = [];
+    if (id === 'adult-trending') torrents = await getCachedTorrents('trending');
+    else if (id === 'adult-popular') torrents = await getCachedTorrents('popular');
+    
+    console.log(`📊 Found ${torrents.length} torrents for catalog ${id}`);
+    
+    if (!torrents.length) {
+      return {
+        metas: [{
+          id: 'no_content',
+          type: 'movie',
+          name: '🔄 Loading content...',
+          poster: 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Loading...',
+          description: 'Content is loading. Please refresh in a moment.'
+        }]
+      };
+    }
+
+    const metas = torrents.map(t => ({
+      id: t.id,
+      type: 'movie',
+      name: t.name.length > 80 ? t.name.slice(0,80) + '...' : t.name,
+      poster: `https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=${encodeURIComponent(t.name.slice(0,10).replace(/[^\w]/g,''))}`,
+      description: `💾 Size: ${t.size}\n🌱 Seeders: ${t.seeders}\n📥 Leechers: ${t.leechers}${t.uploader ? `\n👤 Uploader: ${t.uploader}` : ''}`,
+      genres: ['Adult'],
+      releaseInfo: `${t.seeders} seeders`
+    }));
+
+    return { metas };
+  } catch (err) {
+    console.error('❌ Catalog error:', err);
+    return { metas: [] };
+  }
+});
+
+// FIXED: Meta Handler (REQUIRED for custom IDs)
+builder.defineMetaHandler(async ({ type, id, config }) => {
+  console.log('🧾 Meta request:', { type, id });
+  if (type !== 'movie') return { meta: null };
+  
+  try {
+    await getCachedTorrents('trending');
+    const all = [...trendingCache, ...popularCache];
+    const t = all.find(x => x.id === id);
+    
+    if (!t) {
+      return { meta: { id, type: 'movie', name: 'Unknown item', genres: ['Adult'] } };
+    }
+
+    return {
+      meta: {
+        id: t.id,
+        type: 'movie',
+        name: t.name,
+        poster: `https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=${encodeURIComponent(t.name.slice(0,10).replace(/[^\w]/g,''))}`,
+        description: `💾 ${t.size} • 🌱 ${t.seeders} • 📥 ${t.leechers}`,
+        genres: ['Adult'],
+        releaseInfo: `${t.seeders} seeders`,
+        imdbRating: '6.5'
+      }
+    };
+  } catch (err) {
+    console.error('❌ Meta error:', err);
+    return { meta: null };
+  }
+});
+
+// Stream Handler with TorBox Integration
+builder.defineStreamHandler(async ({ type, id, config }) => {
+  console.log('🎬 ===== STREAM REQUEST RECEIVED =====');
+  console.log('🎬 Stream request for ID:', id, 'Type:', type);
+  console.log('⚙️ User Config:', config);
+  
+  if (type !== 'movie') return { streams: [] };
+  
+  try {
+    await getCachedTorrents('trending');
+    const all = [...trendingCache, ...popularCache];
+    const t = all.find(x => x.id === id);
+    
+    if (!t) return { streams: [] };
+
+    const details = await scraper.getTorrentDetails(t.link);
+    if (!details?.magnetLink) return { streams: [] };
+
+    const streams = [];
+    
+    // Always provide P2P stream
+    const p2pStream = {
+      title: `🔴 Direct P2P - ${t.size} (${t.seeders}S/${t.leechers}L)`,
+      url: details.magnetLink,
+      behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
+    };
+    streams.push(p2pStream);
+
+    // Add TorBox stream if configured
+    const torboxApiKey = config?.torboxApiKey;
+    const enableTorBox = config?.enableTorBox;
+    
+    if (enableTorBox && torboxApiKey) {
+      console.log('🟡 TorBox integration enabled, processing...');
+      const torboxService = new TorBoxService(torboxApiKey);
+      const torboxStream = await torboxService.processStream(details.magnetLink, t);
+      
+      if (torboxStream) {
+        streams.push(torboxStream);
+        console.log('✅ TorBox stream added');
+      }
+    } else {
+      console.log('🔘 TorBox disabled or no API key provided');
+    }
+
+    console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
+    console.log('🎬 ===== STREAM SUCCESS =====');
+    return { streams };
+  } catch (err) {
+    console.error('❌ Stream error:', err);
+    return { streams: [] };
+  }
+});
+
+// Create Express app
+const app = express();
+
+// Enable CORS for all routes
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  next();
+});
+
+// Health check root endpoint
+app.get('/', (req, res) => {
+  res.type('application/json').send(JSON.stringify({ 
+    ok: true, 
+    msg: 'Adult Content Addon', 
+    manifest: '/manifest.json',
+    configure: '/configure',
+    version: manifest.version,
+    name: manifest.name,
+    description: manifest.description
+  }));
+});
+
+// Configuration page
+app.get('/configure', (req, res) => {
+  const configHtml = ConfigService.generateConfigPage();
+  res.type('text/html').send(configHtml);
+});
+
+// Mount the Stremio addon routes using getRouter
+const addonRouter = getRouter(builder.getInterface());
+app.use('/', addonRouter);
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('❌ Server error:', error);
+  res.status(500).json({ 
+    ok: false, 
+    error: 'Internal server error',
+    message: error.message 
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    ok: false, 
+    error: 'Not found',
+    path: req.path 
+  });
+});
+
+// Start server on fixed port
+const port = Number(process.env.PORT || 3000);
+const host = process.env.HOST || '0.0.0.0';
+
+app.listen(port, host, () => {
+  console.log(`✅ Adult Content Addon server running on: http://${host}:${port}`);
+  console.log(`📋 Manifest URL (Local): http://localhost:${port}/manifest.json`);
+  console.log(`📋 Manifest URL (Public): https://stremio.moindigital.in/manifest.json`);
+  console.log(`⚙️ Configure URL: https://stremio.moindigital.in/configure`);
+  console.log(`🏠 Health check: http://${host}:${port}/`);
+  console.log('🎯 Ready for Stremio addon installation!');
+  console.log('');
+  console.log('📝 Setup Instructions:');
+  console.log('1. Go to https://stremio.moindigital.in/configure');
+  console.log('2. Enter your TorBox API key (get it from TorBox settings)');
+  console.log('3. Enable TorBox integration');
+  console.log('4. Install the configured addon URL in Stremio');
+  console.log('5. Version 1.2.1 with FIXED idPrefixes for meta/stream routing!');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 Received SIGINT, shutting down gracefully...');
+  process.exit(0);
+});
