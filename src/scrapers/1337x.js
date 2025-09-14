@@ -20,19 +20,24 @@ class Scraper1337x {
 
     async _makeRequest(url) {
         if (this.userConfig && this.userConfig.flaresolverrUrl) {
-            console.log(`  -> Using FlareSolverr at ${this.userConfig.flaresolverrUrl}`);
-            const response = await axios.post(`${this.userConfig.flaresolverrUrl}/v1`, {
-                cmd: 'request.get',
-                url: url,
-                maxTimeout: 60000
-            }, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 70000
-            });
-            if (response.data.solution) {
-                return response.data.solution.response;
-            } else {
-                throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
+            try {
+                console.log(`  -> Using FlareSolverr at ${this.userConfig.flaresolverrUrl}`);
+                const response = await axios.post(`${this.userConfig.flaresolverrUrl}/v1`, {
+                    cmd: 'request.get',
+                    url: url,
+                    maxTimeout: 60000
+                }, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 70000
+                });
+                if (response.data.solution) {
+                    return response.data.solution.response;
+                } else {
+                    throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
+                }
+            } catch (error) {
+                console.error(`❌ FlareSolverr request failed: ${error.message}`);
+                throw error;
             }
         } else {
             const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
