@@ -2,7 +2,6 @@ const express = require('express');
 const corsMiddleware = require('./middleware/cors');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const addonRoutes = require('./routes/addonRoutes');
-const configureRoutes = require('./routes/configureRoutes'); // Assuming you have this or similar
 
 async function startServer() {
   const app = express();
