@@ -23,9 +23,21 @@ class CatalogHandler {
       let torrents = [];
       if (id === 'adult-search') {
         if (extra && extra.search) {
-          const Scraper1337x = require('../scrapers/1337x');
-          const scraper = new Scraper1337x(userConfig);
-          torrents = await scraper.search(extra.search);
+          // --- DUMMY META TEST ---
+          console.log('🧪 Returning dummy meta for search test.');
+          return {
+            metas: [{
+              id: 'test-1',
+              type: 'movie',
+              name: 'Test Meta for ' + extra.search,
+              poster: 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Test'
+            }]
+          };
+          // --- END DUMMY META TEST ---
+
+          // const Scraper1337x = require('../scrapers/1337x');
+          // const scraper = new Scraper1337x(userConfig);
+          // torrents = await scraper.search(extra.search);
         }
       } else {
         await initialCachePromise;
