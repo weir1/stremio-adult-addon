@@ -21,8 +21,13 @@ class Scraper1337x {
     async _makeRequest(url) {
         if (this.userConfig && this.userConfig.flaresolverrUrl) {
             try {
-                console.log(`  -> Using FlareSolverr at ${this.userConfig.flaresolverrUrl}`);
-                const response = await axios.post(`${this.userConfig.flaresolverrUrl}/v1`, {
+                console.log(`  -> Preparing FlareSolverr request for: ${url}`);
+                const flaresolverrUrl = this.userConfig.flaresolverrUrl.endsWith('/')
+                    ? `${this.userConfig.flaresolverrUrl}v1`
+                    : `${this.userConfig.flaresolverrUrl}/v1`;
+
+                console.log(`  -> Posting to FlareSolverr at ${flaresolverrUrl}`);
+                const response = await axios.post(flaresolverrUrl, {
                     cmd: 'request.get',
                     url: url,
                     maxTimeout: 60000
@@ -30,13 +35,26 @@ class Scraper1337x {
                     headers: { 'Content-Type': 'application/json' },
                     timeout: 70000
                 });
-                if (response.data.solution) {
+                console.log('  -> FlareSolverr response received.');
+
+                if (response.data && response.data.solution) {
+                    console.log('  -> FlareSolverr solution found.');
                     return response.data.solution.response;
                 } else {
+                    console.error('❌ FlareSolverr did not return a solution.');
                     throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
                 }
             } catch (error) {
-                console.error(`❌ FlareSolverr request failed: ${error.message}`);
+                console.error('❌ FlareSolverr request failed:');
+                if (error.response) {
+                    console.error('  -> Status:', error.response.status);
+                    console.error('  -> Data:', JSON.stringify(error.response.data));
+                } else if (error.request) {
+                    console.error('  -> No response received:', error.request);
+                } else {
+                    console.error('  -> Error setting up request:', error.message);
+                }
+                console.error('  -> Full error:', error);
                 throw error;
             }
         } else {
