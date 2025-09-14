@@ -53,3 +53,16 @@ By declaring `idPrefixes` for both the `meta` and `stream` resources, the addon 
 6.  **Playback**: The play button appears, and the user can start the stream.
 
 This solution ensures reliable playback by correctly signaling the addon's capabilities to the Stremio client.
+
+## 5. Torbox Integration Issue
+
+### The Problem
+The Torbox integration is not working as expected. When a user tries to play a video, the addon should check if the stream is already cached on Torbox. If it is, it should play instantly. If not, it should be added to the Torbox download queue, and the user should see a "downloading" status.
+
+Currently, there's a status mismatch. Even when Torbox shows the content as cached, the addon reports "Not found" and fails to play.
+
+### Desired Behavior
+The addon's Torbox integration should function like other similar addons:
+- **Instant Playback:** If the content is cached on Torbox, it should play immediately.
+- **Show Downloading Status:** If the content is not cached, it should be added to the Torbox download queue, and the addon should display a "downloading" or "caching" status to the user.
+- **Correct Status Symbols:** The addon should use appropriate symbols or UI elements to indicate whether a stream is cached, downloading, or available for instant playback.
