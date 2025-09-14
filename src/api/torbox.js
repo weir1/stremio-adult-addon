@@ -41,12 +41,13 @@ async function getJson(url, headers = {}) {
   try {
     const res = await request(url, { method: 'GET', headers: { accept: 'application/json', ...headers } });
     const status = res.statusCode;
+    const responseHeaders = res.headers;
     let json = null;
     try { json = await res.body.json(); } catch { json = null; }
-    return { ok: status >= 200 && status < 300, status, json };
+    return { ok: status >= 200 && status < 300, status, headers: responseHeaders, json };
   } catch (error) {
     console.error('❌ TorBox GET request failed:', error.message);
-    return { ok: false, status: 0, json: null };
+    return { ok: false, status: 0, headers: null, json: null };
   }
 }
 
@@ -129,18 +130,21 @@ async function addMagnet({ magnet, token }) {
 async function getStreamUrl({ infoHash, token }) {
   if (!infoHash) return { url: null, filename: null };
 
-  const { ok, json } = await postForm(
+  // First, get the file list to find the main video file
+  const { ok: torrentInfoOk, json: torrentInfoJson } = await postForm(
     `${TORBOX_BASE}/v1/api/torrents/torrentinfo`,
     { hash: infoHash },
     authHeaders(token)
   );
 
-  if (!ok || !json?.data?.files?.length) {
+  console.log('📦 TorBox torrentinfo response:', JSON.stringify(torrentInfoJson, null, 2));
+
+  if (!torrentInfoOk || !torrentInfoJson?.data?.files?.length) {
     console.log('❌ Could not get file list from TorBox');
     return { url: null, filename: null };
   }
 
-  const files = json.data.files;
+  const files = torrentInfoJson.data.files;
   const videoCandidates = files.filter(f => {
     const n = (f.name || '').toLowerCase();
     return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
@@ -153,11 +157,31 @@ async function getStreamUrl({ infoHash, token }) {
     return { url: null, filename: null };
   }
 
-  // Construct the download URL. This is a common pattern for such APIs.
-  const fileUrl = `${TORBOX_BASE}/v1/api/downloads/getfile?hash=${infoHash}&name=${encodeURIComponent(best.name)}&token=${token}`;
+  // Now, create the stream using the correct endpoint
+  const streamUrl = `${TORBOX_BASE}/v1/api/stream/createstream?hash=${infoHash}&file=${encodeURIComponent(best.name)}&token=${token}`;
   
-  console.log(`✅ Constructed stream URL: ${fileUrl}`);
-  return { url: fileUrl, filename: best.name };
+  console.log(`⚡️ Requesting stream from TorBox: ${streamUrl}`);
+
+  // The 'createstream' endpoint might redirect or return a JSON with the URL
+  // We will try to fetch it and see what we get.
+  // Using GET as per API docs.
+  const { ok, status, json, headers } = await getJson(streamUrl, authHeaders(token));
+
+  console.log('🎬 TorBox createstream response:', { ok, status, headers, json });
+
+  if (ok && json && json.data && json.data.url) {
+    console.log(`✅ Got stream URL from JSON response: ${json.data.url}`);
+    return { url: json.data.url, filename: best.name };
+  }
+  
+  // As a fallback, some services might return the URL in the 'Location' header on a redirect
+  if (status >= 300 && status < 400 && headers && headers.location) {
+    console.log(`✅ Got stream URL from Location header: ${headers.location}`);
+    return { url: headers.location, filename: best.name };
+  }
+
+  console.log('❌ Failed to get a valid stream URL from TorBox');
+  return { url: null, filename: null };
 }
 
 module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash };

@@ -66,3 +66,14 @@ The addon's Torbox integration should function like other similar addons:
 - **Instant Playback:** If the content is cached on Torbox, it should play immediately.
 - **Show Downloading Status:** If the content is not cached, it should be added to the Torbox download queue, and the addon should display a "downloading" or "caching" status to the user.
 - **Correct Status Symbols:** The addon should use appropriate symbols or UI elements to indicate whether a stream is cached, downloading, or available for instant playback.
+
+## 6. FansDB Integration for OnlyFans Content
+
+### The Goal
+To expand the addon's content library, we will integrate with FansDB.cc to fetch metadata and posters for OnlyFans content.
+
+### Requirements
+- **API Integration:** Use the FansDB GraphQL API endpoint: `https://fansdb.cc/graphql`.
+- **Metadata:** Fetch metadata, including posters, for OnlyFans performers and scenes.
+- **Catalog:** Create new catalogs in the addon to display OnlyFans content.
+- **Configuration:** Allow users to enable/disable the FansDB integration and provide their own API key in the addon's settings.

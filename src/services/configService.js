@@ -81,9 +81,11 @@ class ConfigService {
         .section { margin-bottom: 30px; padding: 20px; border-radius: 10px; }
         .section.torbox { background: rgba(255, 140, 0, 0.1); border: 1px solid rgba(255, 140, 0, 0.3); }
         .section.posters { background: rgba(138, 43, 226, 0.1); border: 1px solid rgba(138, 43, 226, 0.3); }
+        .section.fansdb { background: rgba(0, 188, 212, 0.1); border: 1px solid rgba(0, 188, 212, 0.3); }
         .section h3 { margin-bottom: 15px; }
         .section.torbox h3 { color: #ff8c00; }
         .section.posters h3 { color: #8a2be2; }
+        .section.fansdb h3 { color: #00bcd4; }
         .info-box {
             background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3);
             border-radius: 8px; padding: 15px; margin-bottom: 25px;
@@ -157,6 +159,24 @@ class ConfigService {
             </div>
         </div>
 
+        <div class="section fansdb">
+            <h3>💃 FansDB Integration (Optional)</h3>
+            <p style="color: #cccccc; margin-bottom: 15px;">Enable OnlyFans content from FansDB.cc</p>
+            
+            <div class="form-group">
+                <label for="fansdbApiKey">FansDB API Key:</label>
+                <input type="text" id="fansdbApiKey" name="fansdbApiKey" placeholder="Enter your FansDB API key...">
+                <small>Get from FansDB.cc after registration</small>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="enableFansDB" name="enableFansDB">
+                    <label for="enableFansDB">Enable FansDB Integration</label>
+                </div>
+            </div>
+        </div>
+
         <div id="statusBox" class="status-box" style="display:none;">
             <h4 id="statusTitle">⚙️ Configuration Status</h4>
             <p id="statusMessage">Configure your services above</p>
@@ -196,6 +216,8 @@ class ConfigService {
             const theporndbApiKey = document.getElementById('theporndbApiKey').value.trim();
             const enableThePornDB = document.getElementById('enableThePornDB').checked;
             const enableEnhancedPosters = document.getElementById('enableEnhancedPosters').checked;
+            const fansdbApiKey = document.getElementById('fansdbApiKey').value.trim();
+            const enableFansDB = document.getElementById('enableFansDB').checked;
             
             let baseUrl = 'https://stremio.moindigital.in';
             let manifestUrl = baseUrl + '/manifest.json';
@@ -207,6 +229,8 @@ class ConfigService {
             if (theporndbApiKey) config.theporndbApiKey = theporndbApiKey;
             if (enableThePornDB) config.enableThePornDB = enableThePornDB;
             if (enableEnhancedPosters) config.enableEnhancedPosters = enableEnhancedPosters;
+            if (fansdbApiKey) config.fansdbApiKey = fansdbApiKey;
+            if (enableFansDB) config.enableFansDB = enableFansDB;
             
             // Create encoded URL if any config is set
             if (Object.keys(config).length > 0) {
@@ -222,6 +246,7 @@ class ConfigService {
             let services = [];
             if (enableTorBox && torboxApiKey) services.push('TorBox');
             if (enableThePornDB && theporndbApiKey) services.push('ThePornDB');
+            if (enableFansDB && fansdbApiKey) services.push('FansDB');
             if (enableEnhancedPosters) services.push('Enhanced Posters');
             
             statusBox.style.display = 'block';
@@ -259,6 +284,8 @@ class ConfigService {
         document.getElementById('theporndbApiKey').addEventListener('input', updateManifestUrl);
         document.getElementById('enableThePornDB').addEventListener('change', updateManifestUrl);
         document.getElementById('enableEnhancedPosters').addEventListener('change', updateManifestUrl);
+        document.getElementById('fansdbApiKey').addEventListener('input', updateManifestUrl);
+        document.getElementById('enableFansDB').addEventListener('change', updateManifestUrl);
         
         updateManifestUrl();
     </script>

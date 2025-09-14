@@ -1,18 +1,19 @@
 const getManifest = (idPrefixes = []) => ({
   id: 'org.stremio.adult.addon',
-  version: '1.4.0', // Bump version for this major change
+  version: '1.5.0', // Bump version for FansDB integration
   name: 'Adult Content Addon',
-  description: 'Stream adult content from 1337x with TorBox integration. Configure with your TorBox API key for enhanced streaming.',
+  description: 'Stream adult content from 1337x and FansDB. Configure with your API keys for enhanced streaming.',
   resources: [
     'catalog',
-    { name: 'meta', types: ['movie'], idPrefixes },
+    { name: 'meta', types: ['movie', 'channel'], idPrefixes },
     { name: 'stream', types: ['movie'], idPrefixes }
   ],
-  types: ['movie'],
+  types: ['movie', 'channel'],
   idPrefixes: idPrefixes,
   catalogs: [
-    { type: 'movie', id: 'adult-trending', name: '🔥 Trending Adult' },
-    { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Adult' }
+    { type: 'movie', id: 'adult-trending', name: '🔥 Trending Torrents' },
+    { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Torrents' },
+    { type: 'channel', id: 'fansdb-top', name: '💃 Top FansDB Performers' }
   ],
   behaviorHints: {
     configurable: true,

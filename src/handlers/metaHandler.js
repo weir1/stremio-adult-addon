@@ -1,9 +1,22 @@
 const { getCachedTorrents } = require('../utils/torrentCache');
 const { generatePoster } = require('../utils/posterGenerator');
+const FansDBService = require('../services/fansdbService');
 
 class MetaHandler {
   async handle({ type, id }, userConfig) {
     console.log('🧾 Meta request:', { type, id });
+
+    if (id.startsWith('fansdb:')) {
+      if (userConfig?.fansdbApiKey) {
+        const fansdbService = new FansDBService(userConfig.fansdbApiKey);
+        const performerId = id.split(':')[1];
+        const meta = await fansdbService.getPerformerMeta(performerId);
+        return { meta };
+      } else {
+        return { meta: null };
+      }
+    }
+
     if (type !== 'movie') return { meta: null };
     
     try {

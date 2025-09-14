@@ -1,11 +1,23 @@
 const { getCachedTorrents } = require('../utils/torrentCache');
 const { generatePoster } = require('../utils/posterGenerator');
+const FansDBService = require('../services/fansdbService');
 
 class CatalogHandler {
   async handle({ type, id, extra }, userConfig) {
     console.log('📋 Catalog request:', { type, id, extra });
     console.log('🔧 User config for catalog:', userConfig);
-    if (type !== 'movie') return { metas: [] };
+    if (type !== 'movie' && type !== 'channel') return { metas: [] };
+
+    // FansDB Catalog
+    if (id === 'fansdb-top') {
+      if (userConfig?.fansdbApiKey) {
+        const fansdbService = new FansDBService(userConfig.fansdbApiKey);
+        const performers = await fansdbService.getTopPerformers();
+        return { metas: performers };
+      } else {
+        return { metas: [] }; // No API key, no catalog
+      }
+    }
     
     try {
       let torrents = [];
@@ -20,7 +32,7 @@ class CatalogHandler {
             id: 'no_content',
             type: 'movie',
             name: '🔄 Loading content...',
-            poster: 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Loading...',
+            poster: 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Loading...', 
             description: 'Content is loading. Please refresh in a moment.'
           }]
         };
@@ -48,3 +60,4 @@ class CatalogHandler {
 }
 
 module.exports = new CatalogHandler();
+
