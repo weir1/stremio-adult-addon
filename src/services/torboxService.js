@@ -1,4 +1,4 @@
-const { isCached, addMagnet, getStreamUrl, extractInfoHash } = require('../api/torbox');
+const { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentId } = require('../api/torbox');
 
 class TorBoxService {
   constructor(apiKey) {
@@ -94,19 +94,23 @@ class TorBoxService {
       const cacheResult = await isCached({ infoHash: h, token: this.apiKey });
 
       if (cacheResult.cached) {
-        console.log('✅ Hash is cached in TorBox, attempting to get stream URL...');
-        const streamResult = await getStreamUrl({ infoHash: h, token: this.apiKey });
+        console.log('✅ Hash is cached in TorBox, attempting to get torrent ID...');
+        const torrentId = await getTorrentId({ infoHash: h, token: this.apiKey });
 
-        if (streamResult.url) {
-          return {
-            ok: true,
-            hash: h,
-            state: 'downloaded',
-            cached: true,
-            progress: 100,
-            cachedUrl: streamResult.url,
-            updatedAt: Date.now()
-          };
+        if (torrentId) {
+          const streamResult = await getStreamUrl({ torrentId, infoHash: h, token: this.apiKey });
+
+          if (streamResult.url) {
+            return {
+              ok: true,
+              hash: h,
+              state: 'downloaded',
+              cached: true,
+              progress: 100,
+              cachedUrl: streamResult.url,
+              updatedAt: Date.now()
+            };
+          }
         }
         
         console.error('❌ Failed to get stream URL, even though file is cached.');

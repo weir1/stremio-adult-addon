@@ -89,7 +89,7 @@ async function isCached({ magnet, infoHash, token }) {
   
   console.log('🔍 Checking TorBox cache...');
   const { ok, status, json } = await getJson(url, headers);
-  console.log('🔍 TorBox cache response:', { ok, status, cached: json?.data?.hash ? true : false });
+  console.log('🔍 TorBox cache response:', { ok, status, cached: !!(ok && json?.data && Object.keys(json.data).length > 0) });
   
   // TorBox returns success:true with empty data{} when not cached
   const cached = !!(ok && json?.data && Object.keys(json.data).length > 0);
@@ -126,25 +126,48 @@ async function addMagnet({ magnet, token }) {
   return { ok, data: ok ? json : null };
 }
 
+async function getTorrentInfo({ infoHash, token }) {
+    if (!infoHash) return null;
+
+    const { ok, json } = await getJson(`${TORBOX_BASE}/v1/api/torrents/mylist`, authHeaders(token));
+
+    if (!ok || !json?.data) {
+        console.log('❌ Could not get torrent list from TorBox');
+        return null;
+    }
+
+    const torrents = json.data;
+    const matchingTorrent = torrents.find(t => t.hash.toLowerCase() === infoHash.toLowerCase());
+
+    if (matchingTorrent) {
+        console.log(`✅ Found torrent id: ${matchingTorrent.id}`);
+        return matchingTorrent;
+    }
+
+    console.log(`❌ Could not find torrent with hash ${infoHash} in mylist`);
+    return null;
+}
+
 // Get a playable URL for a cached torrent by hash
-async function getStreamUrl({ infoHash, token }) {
-  if (!infoHash) return { url: null, filename: null };
+async function getStreamUrl({ torrent, token }) {
+  if (!torrent || !torrent.id || !torrent.hash) return { url: null, filename: null };
 
-  // First, get the file list to find the main video file
-  const { ok: torrentInfoOk, json: torrentInfoJson } = await postForm(
-    `${TORBOX_BASE}/v1/api/torrents/torrentinfo`,
-    { hash: infoHash },
-    authHeaders(token)
-  );
-
-  console.log('📦 TorBox torrentinfo response:', JSON.stringify(torrentInfoJson, null, 2));
-
-  if (!torrentInfoOk || !torrentInfoJson?.data?.files?.length) {
-    console.log('❌ Could not get file list from TorBox');
-    return { url: null, filename: null };
+  let files = torrent.files;
+  if (!files || !files.length) {
+      // if files are not in the mylist response, get them from torrentinfo
+      const { ok: torrentInfoOk, json: torrentInfoJson } = await postForm(
+        `${TORBOX_BASE}/v1/api/torrents/torrentinfo`,
+        { hash: torrent.hash },
+        authHeaders(token)
+      );
+      if (torrentInfoOk && torrentInfoJson?.data?.files?.length) {
+          files = torrentInfoJson.data.files;
+      } else {
+          console.log('❌ Could not get file list from TorBox');
+          return { url: null, filename: null };
+      }
   }
 
-  const files = torrentInfoJson.data.files;
   const videoCandidates = files.filter(f => {
     const n = (f.name || '').toLowerCase();
     return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
@@ -157,24 +180,23 @@ async function getStreamUrl({ infoHash, token }) {
     return { url: null, filename: null };
   }
 
+  const torrentId = torrent.id;
+  const fileId = best.id !== undefined ? best.id : files.indexOf(best);
+
   // Now, create the stream using the correct endpoint
-  const streamUrl = `${TORBOX_BASE}/v1/api/stream/createstream?hash=${infoHash}&file=${encodeURIComponent(best.name)}&token=${token}`;
+  const streamUrl = `${TORBOX_BASE}/v1/api/stream/createstream?id=${torrentId}&file_id=${fileId}&token=${token}`;
   
   console.log(`⚡️ Requesting stream from TorBox: ${streamUrl}`);
 
-  // The 'createstream' endpoint might redirect or return a JSON with the URL
-  // We will try to fetch it and see what we get.
-  // Using GET as per API docs.
   const { ok, status, json, headers } = await getJson(streamUrl, authHeaders(token));
 
-  console.log('🎬 TorBox createstream response:', { ok, status, headers, json });
+  console.log('🎬 TorBox createstream response:', { ok, status, headers, json: JSON.stringify(json, null, 2) });
 
-  if (ok && json && json.data && json.data.url) {
-    console.log(`✅ Got stream URL from JSON response: ${json.data.url}`);
-    return { url: json.data.url, filename: best.name };
+  if (ok && json && json.url) {
+    console.log(`✅ Got stream URL from JSON response: ${json.url}`);
+    return { url: json.url, filename: best.name };
   }
   
-  // As a fallback, some services might return the URL in the 'Location' header on a redirect
   if (status >= 300 && status < 400 && headers && headers.location) {
     console.log(`✅ Got stream URL from Location header: ${headers.location}`);
     return { url: headers.location, filename: best.name };
@@ -184,4 +206,4 @@ async function getStreamUrl({ infoHash, token }) {
   return { url: null, filename: null };
 }
 
-module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash };
+module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo };

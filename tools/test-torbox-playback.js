@@ -1,4 +1,4 @@
-const { getStreamUrl } = require('../src/api/torbox');
+const { getStreamUrl, isCached, getTorrentId } = require('../src/api/torbox');
 const { request } = require('undici');
 
 // =====================================================================================
@@ -15,24 +15,37 @@ async function runTest() {
   console.log(`🚀 Starting TorBox playback test for info hash: ${TEST_INFO_HASH}`);
 
   try {
-    const streamResult = await getStreamUrl({ infoHash: TEST_INFO_HASH, token: TORBOX_API_KEY });
+    const cacheResult = await isCached({ infoHash: TEST_INFO_HASH, token: TORBOX_API_KEY });
 
-    if (!streamResult.url) {
-      console.error('❌ getStreamUrl did not return a URL.');
-      return;
-    }
+    if (cacheResult.cached) {
+      console.log('✅ Hash is cached in TorBox, attempting to get torrent ID...');
+      const torrentId = await getTorrentId({ infoHash: TEST_INFO_HASH, token: TORBOX_API_KEY });
 
-    console.log(`✅ getStreamUrl returned URL: ${streamResult.url}`);
-    console.log('🔍 Fetching the stream URL to check if it is playable...');
+      if (torrentId) {
+        const streamResult = await getStreamUrl({ torrentId, infoHash: TEST_INFO_HASH, token: TORBOX_API_KEY });
 
-    const res = await request(streamResult.url, { method: 'GET' });
+        if (!streamResult.url) {
+          console.error('❌ getStreamUrl did not return a URL.');
+          return;
+        }
 
-    console.log(`statusCode: ${res.statusCode}`);
+        console.log(`✅ getStreamUrl returned URL: ${streamResult.url}`);
+        console.log('🔍 Fetching the stream URL to check if it is playable...');
 
-    if (res.statusCode === 200) {
-      console.log('✅ TEST PASSED: The stream URL returned a 200 OK status.');
+        const res = await request(streamResult.url, { method: 'GET' });
+
+        console.log(`statusCode: ${res.statusCode}`);
+
+        if (res.statusCode === 200) {
+          console.log('✅ TEST PASSED: The stream URL returned a 200 OK status.');
+        } else {
+          console.error('❌ TEST FAILED: The stream URL did not return a 200 OK status.');
+        }
+      } else {
+        console.error('❌ Could not get torrent ID.');
+      }
     } else {
-      console.error('❌ TEST FAILED: The stream URL did not return a 200 OK status.');
+      console.error('❌ Torrent is not cached.');
     }
 
   } catch (error) {
