@@ -27,15 +27,16 @@ class Scraper1337x {
                 maxTimeout: 60000
             });
 
-            let flaresolverrUrlString = this.userConfig.flaresolverrUrl;
-            if (flaresolverrUrlString.includes('localhost')) {
-                flaresolverrUrlString = flaresolverrUrlString.replace('localhost', '127.0.0.1');
-                console.log(`  -> Changed localhost to 127.0.0.1: ${flaresolverrUrlString}`);
+            const flaresolverrUrl = new URL(this.userConfig.flaresolverrUrl);
+            let hostname = flaresolverrUrl.hostname;
+
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                hostname = '172.17.0.1'; // Try the default docker bridge IP
+                console.log(`  -> Overriding hostname to Docker bridge IP: ${hostname}`);
             }
-            const flaresolverrUrl = new URL(flaresolverrUrlString);
 
             const options = {
-                hostname: flaresolverrUrl.hostname,
+                hostname: hostname,
                 port: flaresolverrUrl.port,
                 path: '/v1',
                 method: 'POST',
@@ -46,7 +47,7 @@ class Scraper1337x {
             };
 
             return new Promise((resolve, reject) => {
-                console.log(`  -> Posting to FlareSolverr at ${flaresolverrUrlString} using http module`);
+                console.log(`  -> Posting to FlareSolverr at http://${hostname}:${flaresolverrUrl.port}/v1 using http module`);
                 const req = http.request(options, (res) => {
                     let data = '';
                     res.on('data', (chunk) => {
