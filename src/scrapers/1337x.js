@@ -2,8 +2,9 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 class Scraper1337x {
-    constructor() {
+    constructor(userConfig = {}) {
         this.baseUrls = ['https://1337x.to', 'https://1337x.st', 'https://1337x.unblockninja.com'];
+        this.userConfig = userConfig;
     }
 
     generateTorrentId(name, link) {
@@ -17,11 +18,33 @@ class Scraper1337x {
         return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
     }
 
+    async _makeRequest(url) {
+        if (this.userConfig && this.userConfig.flaresolverrUrl) {
+            console.log(`  -> Using FlareSolverr at ${this.userConfig.flaresolverrUrl}`);
+            const response = await axios.post(`${this.userConfig.flaresolverrUrl}/v1`, {
+                cmd: 'request.get',
+                url: url,
+                maxTimeout: 60000
+            }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 70000
+            });
+            if (response.data.solution) {
+                return response.data.solution.response;
+            } else {
+                throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
+            }
+        } else {
+            const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
+            return response.data;
+        }
+    }
+
     async getTorrentDetails(torrentUrl) {
         try {
             console.log(`  -> Scraping details for: ${torrentUrl.substring(0, 60)}...`);
-            const response = await axios.get(torrentUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 });
-            const $ = cheerio.load(response.data);
+            const html = await this._makeRequest(torrentUrl);
+            const $ = cheerio.load(html);
             let magnetLink = $('a[href^="magnet:"]').attr('href');
             if (magnetLink) magnetLink = this.decodeHtmlEntities(magnetLink);
             let posterEl = $('#description img.descrimg').first();
@@ -39,8 +62,8 @@ class Scraper1337x {
             try {
                 const url = `${baseUrl}${categoryPath}`;
                 console.log(`Scraping category list from: ${url}`);
-                const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
-                const $ = cheerio.load(response.data);
+                const html = await this._makeRequest(url);
+                const $ = cheerio.load(html);
                 const torrents = [];
                 $('table tbody tr').each((i, el) => {
                     const $row = $(el);
@@ -84,8 +107,8 @@ class Scraper1337x {
             try {
                 const url = `${baseUrl}/search/${encodedQuery}/1/`;
                 console.log(`Scraping search results from: ${url}`);
-                const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
-                const $ = cheerio.load(response.data);
+                const html = await this._makeRequest(url);
+                const $ = cheerio.load(html);
                 const torrents = [];
                 $('table tbody tr').each((i, el) => {
                     const $row = $(el);

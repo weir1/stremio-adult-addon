@@ -24,13 +24,13 @@ class CatalogHandler {
       if (id === 'adult-search') {
         if (extra && extra.search) {
           const Scraper1337x = require('../scrapers/1337x');
-          const scraper = new Scraper1337x();
+          const scraper = new Scraper1337x(userConfig);
           torrents = await scraper.search(extra.search);
         }
       } else {
         await initialCachePromise;
-        if (id === 'adult-trending') torrents = await getCachedTorrents('trending');
-        else if (id === 'adult-popular') torrents = await getCachedTorrents('popular');
+        if (id === 'adult-trending') torrents = getCachedTorrents('trending', userConfig);
+        else if (id === 'adult-popular') torrents = getCachedTorrents('popular', userConfig);
       }
       
       console.log(`📊 Found ${torrents.length} torrents for catalog ${id}`);

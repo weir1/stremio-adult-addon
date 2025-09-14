@@ -86,6 +86,8 @@ class ConfigService {
         .section.torbox h3 { color: #ff8c00; }
         .section.posters h3 { color: #8a2be2; }
         .section.fansdb h3 { color: #00bcd4; }
+        .section.flaresolverr { background: rgba(0, 119, 255, 0.1); border: 1px solid rgba(0, 119, 255, 0.3); }
+        .section.flaresolverr h3 { color: #0077ff; }
         .info-box {
             background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3);
             border-radius: 8px; padding: 15px; margin-bottom: 25px;
@@ -106,6 +108,17 @@ class ConfigService {
             <h1>🔥 Adult Content Addon</h1>
             <p>Configure TorBox integration and poster sources for enhanced streaming</p>
             <p><strong>✨ Advanced Configuration - Multiple Services</strong></p>
+        </div>
+
+        <div class="section flaresolverr">
+            <h3>🔵 FlareSolverr Integration (Optional)</h3>
+            <p style="color: #cccccc; margin-bottom: 15px;">Bypass Cloudflare protection on 1337x</p>
+            
+            <div class="form-group">
+                <label for="flaresolverrUrl">FlareSolverr URL:</label>
+                <input type="text" id="flaresolverrUrl" name="flaresolverrUrl" placeholder="http://localhost:8191">
+                <small>The URL of your FlareSolverr instance</small>
+            </div>
         </div>
 
         <div class="section torbox">
@@ -218,6 +231,7 @@ class ConfigService {
             const enableEnhancedPosters = document.getElementById('enableEnhancedPosters').checked;
             const fansdbApiKey = document.getElementById('fansdbApiKey').value.trim();
             const enableFansDB = document.getElementById('enableFansDB').checked;
+            const flaresolverrUrl = document.getElementById('flaresolverrUrl').value.trim();
             
             let baseUrl = 'https://stremio.moindigital.in';
             let manifestUrl = baseUrl + '/manifest.json';
@@ -231,6 +245,7 @@ class ConfigService {
             if (enableEnhancedPosters) config.enableEnhancedPosters = enableEnhancedPosters;
             if (fansdbApiKey) config.fansdbApiKey = fansdbApiKey;
             if (enableFansDB) config.enableFansDB = enableFansDB;
+            if (flaresolverrUrl) config.flaresolverrUrl = flaresolverrUrl;
             
             // Create encoded URL if any config is set
             if (Object.keys(config).length > 0) {
@@ -286,6 +301,7 @@ class ConfigService {
         document.getElementById('enableEnhancedPosters').addEventListener('change', updateManifestUrl);
         document.getElementById('fansdbApiKey').addEventListener('input', updateManifestUrl);
         document.getElementById('enableFansDB').addEventListener('change', updateManifestUrl);
+        document.getElementById('flaresolverrUrl').addEventListener('input', updateManifestUrl);
         
         updateManifestUrl();
     </script>
