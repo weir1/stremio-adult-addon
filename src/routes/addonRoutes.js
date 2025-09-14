@@ -5,98 +5,67 @@ const ConfigService = require('../services/configService');
 
 const router = express.Router();
 
-// Default addon routes (no config)
-const defaultAddon = new AddonHandler({});
-const defaultRouter = getRouter(defaultAddon.getInterface());
-
-router.use('/manifest.json', defaultRouter);
-router.use('/catalog', defaultRouter);
-router.use('/meta', defaultRouter);
-router.use('/stream', defaultRouter);
-
-// FIXED: Handle encoded config URLs - match everything before /manifest.json
-router.get(/^\/([^\/]+)\/manifest\.json$/, (req, res, next) => {
-  try {
-    const configString = req.params[0];
-    console.log('🔧 Parsing config string:', configString);
-    const userConfig = ConfigService.parseConfigFromUrl(configString);
-    console.log('🔧 Parsed config:', userConfig);
-    
-    const configuredAddon = new AddonHandler(userConfig);
-    const configuredRouter = getRouter(configuredAddon.getInterface());
-    
-    // Modify the request path for the addon router
-    req.url = '/manifest.json';
-    req.path = '/manifest.json';
-    
-    configuredRouter(req, res, next);
-  } catch (error) {
-    console.error('❌ Config parsing error:', error);
-    next(error);
+// This middleware initializes a default addon handler for requests without a config
+router.use(async (req, res, next) => {
+  if (!req.addon) { // Avoid re-initialization
+    const handler = new AddonHandler({});
+    req.addon = await handler.init();
   }
+  next();
 });
 
-router.get(/^\/([^\/]+)\/catalog\/(.+)$/, (req, res, next) => {
-  try {
-    const configString = req.params[0];
-    const catalogPath = req.params[1];
-    console.log('🔧 Catalog config string:', configString);
-    const userConfig = ConfigService.parseConfigFromUrl(configString);
-    
-    const configuredAddon = new AddonHandler(userConfig);
-    const configuredRouter = getRouter(configuredAddon.getInterface());
-    
-    // Modify the request path for the addon router
-    req.url = `/catalog/${catalogPath}`;
-    req.path = `/catalog/${catalogPath}`;
-    
-    configuredRouter(req, res, next);
-  } catch (error) {
-    console.error('❌ Config parsing error:', error);
-    next(error);
-  }
+// Manifest without config
+router.get('/manifest.json', (req, res) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.manifest(req, res);
 });
 
-router.get(/^\/([^\/]+)\/meta\/(.+)$/, (req, res, next) => {
-  try {
-    const configString = req.params[0];
-    const metaPath = req.params[1];
-    console.log('🔧 Meta config string:', configString);
-    const userConfig = ConfigService.parseConfigFromUrl(configString);
-    
-    const configuredAddon = new AddonHandler(userConfig);
-    const configuredRouter = getRouter(configuredAddon.getInterface());
-    
-    // Modify the request path for the addon router
-    req.url = `/meta/${metaPath}`;
-    req.path = `/meta/${metaPath}`;
-    
-    configuredRouter(req, res, next);
-  } catch (error) {
-    console.error('❌ Config parsing error:', error);
-    next(error);
-  }
+// Routes without config
+router.get('/catalog/:type/:id.json', (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.catalog(req, res, next);
+});
+router.get('/meta/:type/:id.json', (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.meta(req, res, next);
+});
+router.get('/stream/:type/:id.json', (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.stream(req, res, next);
 });
 
-router.get(/^\/([^\/]+)\/stream\/(.+)$/, (req, res, next) => {
+// Middleware for routes with config
+const configuredRoute = async (req, res, next) => {
   try {
-    const configString = req.params[0];
-    const streamPath = req.params[1];
-    console.log('🔧 Stream config string:', configString);
+    const configString = req.params.config;
     const userConfig = ConfigService.parseConfigFromUrl(configString);
-    
-    const configuredAddon = new AddonHandler(userConfig);
-    const configuredRouter = getRouter(configuredAddon.getInterface());
-    
-    // Modify the request path for the addon router
-    req.url = `/stream/${streamPath}`;
-    req.path = `/stream/${streamPath}`;
-    
-    configuredRouter(req, res, next);
+    const handler = new AddonHandler(userConfig);
+    req.addon = await handler.init();
+    next();
   } catch (error) {
     console.error('❌ Config parsing error:', error);
     next(error);
   }
+};
+
+// Manifest with config
+router.get('/:config/manifest.json', configuredRoute, (req, res) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.manifest(req, res);
+});
+
+// Routes with config
+router.get('/:config/catalog/:type/:id.json', configuredRoute, (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.catalog(req, res, next);
+});
+router.get('/:config/meta/:type/:id.json', configuredRoute, (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.meta(req, res, next);
+});
+router.get('/:config/stream/:type/:id.json', configuredRoute, (req, res, next) => {
+  const addonInterface = req.addon.getInterface();
+  addonInterface.stream(req, res, next);
 });
 
 module.exports = router;

@@ -1,17 +1,15 @@
-const ID_PREFIXES = ['T25','TW9','TWl','UG9','Qnl','TW9t'];
-
-const manifest = {
+const getManifest = (idPrefixes = []) => ({
   id: 'org.stremio.adult.addon',
-  version: '1.3.1',
+  version: '1.4.0', // Bump version for this major change
   name: 'Adult Content Addon',
   description: 'Stream adult content from 1337x with TorBox integration. Configure with your TorBox API key for enhanced streaming.',
   resources: [
     'catalog',
-    { name: 'meta', types: ['movie'], idPrefixes: ID_PREFIXES },
-    { name: 'stream', types: ['movie'], idPrefixes: ID_PREFIXES }
+    { name: 'meta', types: ['movie'], idPrefixes },
+    { name: 'stream', types: ['movie'], idPrefixes }
   ],
   types: ['movie'],
-  idPrefixes: ID_PREFIXES,
+  idPrefixes: idPrefixes,
   catalogs: [
     { type: 'movie', id: 'adult-trending', name: '🔥 Trending Adult' },
     { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Adult' }
@@ -20,6 +18,6 @@ const manifest = {
     configurable: true,
     configurationRequired: false
   }
-};
+});
 
-module.exports = { manifest, ID_PREFIXES };
+module.exports = { getManifest };
