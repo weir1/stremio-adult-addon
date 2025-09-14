@@ -186,22 +186,30 @@ async function getStreamUrl({ torrent, token }) {
   }
 
   // Now, create the stream using the correct endpoint
-  const streamUrl = `${TORBOX_BASE}/v1/api/stream/getstreamdata?token=${token}&presigned_token=${torrent.auth_id}&id=${torrentId}&file_id=${fileId}`;
+  const requestDlUrl = `${TORBOX_BASE}/v1/api/torrents/requestdl`;
+  const requestDlBody = { torrent_id: torrentId, file_id: fileId };
   
-  console.log(`⚡️ Requesting stream from TorBox: ${streamUrl}`);
+  console.log(`⚡️ Requesting download link from TorBox: ${requestDlUrl}`);
 
-  const { ok, status, json, headers } = await getJson(streamUrl, authHeaders(token));
+  try {
+    const res = await axios.post(requestDlUrl, requestDlBody, {
+      headers: {
+        ...authHeaders(token),
+        'Content-Type': 'application/json',
+      },
+    });
 
-  console.log('🎬 TorBox createstream response:', { ok, status, headers, json: JSON.stringify(json, null, 2) });
-
-  if (ok && json && json.url) {
-    console.log(`✅ Got stream URL from JSON response: ${json.url}`);
-    return { url: json.url, filename: best.name };
-  }
-  
-  if (status >= 300 && status < 400 && headers && headers.location) {
-    console.log(`✅ Got stream URL from Location header: ${headers.location}`);
-    return { url: headers.location, filename: best.name };
+    const streamUrl = res.data;
+    
+    if (streamUrl && typeof streamUrl === 'string') {
+      console.log(`✅ Got stream URL from requestdl: ${streamUrl}`);
+      return { url: streamUrl, filename: best.name };
+    }
+  } catch (error) {
+    console.error('❌ TorBox requestdl failed:', error.message);
+    if (error.response) {
+      console.error('❌ TorBox requestdl response:', error.response.data);
+    }
   }
 
   console.log('❌ Failed to get a valid stream URL from TorBox');
