@@ -36,7 +36,9 @@ class Scraper1337x {
                 });
 
                 if (response.data && response.data.solution) {
-                    return response.data.solution.response;
+                    const html = response.data.solution.response;
+                    console.log(`  -> Received HTML (first 500 chars): ${html.substring(0, 500)}`);
+                    return html;
                 } else {
                     throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
                 }
