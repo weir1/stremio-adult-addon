@@ -20,14 +20,15 @@ class Scraper1337x {
 
     async _makeRequest(url) {
         if (this.userConfig && this.userConfig.flaresolverrUrl) {
-            const http = require('http');
+            const flaresolverrUrl = new URL(this.userConfig.flaresolverrUrl);
+            const http = flaresolverrUrl.protocol === 'https:' ? require('https') : require('http');
+
             const postData = JSON.stringify({
                 cmd: 'request.get',
                 url: url,
                 maxTimeout: 60000
             });
 
-            const flaresolverrUrl = new URL(this.userConfig.flaresolverrUrl);
             let hostname = flaresolverrUrl.hostname;
 
             if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -37,7 +38,7 @@ class Scraper1337x {
 
             const options = {
                 hostname: hostname,
-                port: flaresolverrUrl.port,
+                port: flaresolverrUrl.port || (flaresolverrUrl.protocol === 'https:' ? 443 : 80),
                 path: '/v1',
                 method: 'POST',
                 headers: {
@@ -47,7 +48,7 @@ class Scraper1337x {
             };
 
             return new Promise((resolve, reject) => {
-                console.log(`  -> Posting to FlareSolverr at http://${hostname}:${flaresolverrUrl.port}/v1 using http module`);
+                console.log(`  -> Posting to FlareSolverr at ${this.userConfig.flaresolverrUrl}v1 using ${flaresolverrUrl.protocol.slice(0, -1)} module`);
                 const req = http.request(options, (res) => {
                     let data = '';
                     res.on('data', (chunk) => {
@@ -64,6 +65,8 @@ class Scraper1337x {
                                 reject(new Error(`FlareSolverr did not return a solution. Response: ${data}`));
                             }
                         } catch (e) {
+                            console.error(`Error parsing FlareSolverr response: ${e.message}`);
+                            console.error(`Received data: ${data}`);
                             reject(e);
                         }
                     });
