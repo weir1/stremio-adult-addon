@@ -4,23 +4,42 @@ const scraper = new Scraper1337x();
 let trendingCache = [];
 let popularCache = [];
 let lastCacheUpdate = 0;
-const CACHE_DURATION = 5 * 60 * 1000;
+let isUpdating = false;
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
-async function getCachedTorrents(kind) {
+async function refreshCache() {
+  if (isUpdating) return;
+  isUpdating = true;
+  console.log('🔄 Refreshing torrent cache in the background...');
+  try {
+    const [trending, popular] = await Promise.all([
+      scraper.scrapeTrending(),
+      scraper.scrapePopular()
+    ]);
+    trendingCache = trending;
+    popularCache = popular;
+    lastCacheUpdate = Date.now();
+    console.log(`📦 Cache updated: ${trendingCache.length} trending, ${popularCache.length} popular`);
+  } catch (error) {
+    console.error('❌ Cache update failed:', error);
+  } finally {
+    isUpdating = false;
+  }
+}
+
+function getCachedTorrents(kind) {
   const now = Date.now();
-  if (now - lastCacheUpdate > CACHE_DURATION) {
-    console.log('🔄 Refreshing torrent cache...');
-    try {
-      trendingCache = await scraper.scrapeTrending();
-      popularCache = await scraper.scrapePopular();
-      lastCacheUpdate = now;
-      console.log(`📦 Cache updated: ${trendingCache.length} trending, ${popularCache.length} popular`);
-      if (trendingCache.length) console.log('🆔 Sample trending IDs:', trendingCache.slice(0,3).map(t => t.id));
-    } catch (error) {
-      console.error('❌ Cache update failed:', error);
-    }
+  if (!isUpdating && (now - lastCacheUpdate > CACHE_DURATION)) {
+    refreshCache(); // Trigger background refresh, but don't wait for it
   }
   return kind === 'trending' ? trendingCache : popularCache;
 }
 
-module.exports = { getCachedTorrents, trendingCache, popularCache };
+function getTorrents() {
+    return [...trendingCache, ...popularCache];
+}
+
+// Initial cache fill on startup
+refreshCache();
+
+module.exports = { getCachedTorrents, getTorrents, refreshCache };
