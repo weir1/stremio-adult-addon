@@ -128,29 +128,36 @@ async function addMagnet({ magnet, token }) {
 // Get a playable URL for a cached torrent by hash
 async function getStreamUrl({ infoHash, token }) {
   if (!infoHash) return { url: null, filename: null };
-  
-  const { ok, status, json } = await postForm(
+
+  const { ok, json } = await postForm(
     `${TORBOX_BASE}/v1/api/torrents/torrentinfo`,
     { hash: infoHash },
     authHeaders(token)
   );
-  
-  console.log('🔗 TorBox stream response:', { ok, status, files: json?.data?.files?.length || 0 });
-  
-  if (!ok || !json?.data) return { url: null, filename: null };
-  
-  const files = Array.isArray(json.data.files) ? json.data.files : [];
-  if (!files.length) return { url: null, filename: null };
-  
+
+  if (!ok || !json?.data?.files?.length) {
+    console.log('❌ Could not get file list from TorBox');
+    return { url: null, filename: null };
+  }
+
+  const files = json.data.files;
   const videoCandidates = files.filter(f => {
     const n = (f.name || '').toLowerCase();
-    return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.m3u8') || n.endsWith('.webm');
+    return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
   });
+
+  const best = videoCandidates.sort((a, b) => b.size - a.size)[0] || files[0];
+
+  if (!best) {
+    console.log('❌ No suitable files found in torrent');
+    return { url: null, filename: null };
+  }
+
+  // Construct the download URL. This is a common pattern for such APIs.
+  const fileUrl = `${TORBOX_BASE}/v1/api/downloads/getfile?hash=${infoHash}&name=${encodeURIComponent(best.name)}&token=${token}`;
   
-  const best = (videoCandidates.sort((a, b) => (b.size || 0) - (a.size || 0)))[0] || files[0];
-  const fileUrl = best?.url || best?.streamUrl || best?.link || null;
-  
-  return { url: fileUrl || null, filename: best?.name || null };
+  console.log(`✅ Constructed stream URL: ${fileUrl}`);
+  return { url: fileUrl, filename: best.name };
 }
 
 module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash };

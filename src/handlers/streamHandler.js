@@ -24,7 +24,8 @@ class StreamHandler {
       
       // Always provide P2P stream from cached magnet link
       const p2pStream = {
-        title: `🔴 P2P - ${t.size} (${t.seeders}S)`,
+        name: 'P2P',
+        title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
         url: t.magnetLink,
         behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
       };

@@ -16,10 +16,20 @@ class TorBoxService {
       console.log(`⚡️ Processing stream for hash: ${infoHash}`);
       const status = await this.checkTorrentStatus(infoHash);
 
+      if (!status.ok) {
+        return {
+          name: 'TorBox',
+          title: '🔴 Error: Check Status Failed',
+          url: '#',
+          behaviorHints: { notWebReady: true }
+        };
+      }
+
       if (status.cached && status.cachedUrl) {
         console.log('✅ Torrent is cached and ready to play');
         return {
-          title: `🟢 TorBox Cached - ${torrentInfo.size} (Ready)`,
+          name: 'TorBox',
+          title: `🟢 Cached - ${torrentInfo.size}`,
           url: status.cachedUrl,
           behaviorHints: { 
             notWebReady: false,
@@ -32,32 +42,43 @@ class TorBoxService {
         console.log('🟡 Torrent is downloading in TorBox');
         const host = process.env.PUBLIC_HOST || 'stremio.moindigital.in';
         return {
-          title: `🟡 TorBox: ${status.progress}% - Tap to refresh`,
+          name: 'TorBox',
+          title: `🟡 Downloading... (${status.progress}%)`,
           externalUrl: `https://${host}/torbox-status/${infoHash}?api_key=${this.apiKey}`,
           behaviorHints: { notWebReady: true }
         };
       }
 
-      // If not cached or downloading, add it
-      console.log('➕ Torrent not in TorBox, adding now...');
-      const addResult = await addMagnet({ magnet: magnetLink, token: this.apiKey });
+      if (status.state === 'not_found') {
+        console.log('➕ Torrent not in TorBox, adding now...');
+        const addResult = await addMagnet({ magnet: magnetLink, token: this.apiKey });
 
-      if (addResult.ok) {
-        console.log('✅ Successfully added torrent to TorBox queue');
-        const host = process.env.PUBLIC_HOST || 'stremio.moindigital.in';
-        return {
-          title: '🟡 TorBox: Added to queue! Tap to refresh',
-          externalUrl: `https://${host}/torbox-status/${infoHash}?api_key=${this.apiKey}`,
-          behaviorHints: { notWebReady: true }
-        };
-      } else {
-        console.log('❌ Failed to add torrent to TorBox');
-        return {
-          title: '🔴 TorBox: Error adding torrent',
-          url: '#',
-          behaviorHints: { notWebReady: true }
-        };
+        if (addResult.ok) {
+          console.log('✅ Successfully added torrent to TorBox queue');
+          const host = process.env.PUBLIC_HOST || 'stremio.moindigital.in';
+          return {
+            name: 'TorBox',
+            title: '🟡 Added to queue! Refresh...',
+            externalUrl: `https://${host}/torbox-status/${infoHash}?api_key=${this.apiKey}`,
+            behaviorHints: { notWebReady: true }
+          };
+        } else {
+          console.log('❌ Failed to add torrent to TorBox');
+          return {
+            name: 'TorBox',
+            title: '🔴 Error: Failed to Add',
+            url: '#',
+            behaviorHints: { notWebReady: true }
+          };
+        }
       }
+      
+      return {
+        name: 'TorBox',
+        title: '🔴 Error: Unknown Status',
+        url: '#',
+        behaviorHints: { notWebReady: true }
+      };
 
     } catch (error) {
       console.error('❌ TorBox service error:', error);
@@ -73,7 +94,7 @@ class TorBoxService {
       const cacheResult = await isCached({ infoHash: h, token: this.apiKey });
 
       if (cacheResult.cached) {
-        console.log('✅ Hash is cached in TorBox, fetching stream URL...');
+        console.log('✅ Hash is cached in TorBox, attempting to get stream URL...');
         const streamResult = await getStreamUrl({ infoHash: h, token: this.apiKey });
 
         if (streamResult.url) {
@@ -87,20 +108,29 @@ class TorBoxService {
             updatedAt: Date.now()
           };
         }
+        
+        console.error('❌ Failed to get stream URL, even though file is cached.');
+        return {
+          ok: false,
+          hash: h,
+          state: 'error',
+          cached: true,
+          progress: 100,
+          cachedUrl: null,
+          updatedAt: Date.now(),
+          error: 'Could not retrieve stream URL for cached file.'
+        };
       }
       
-      // If not cached, assume it's downloading or queued
-      // TorBox API doesn't give progress, so we reflect a generic state
-      console.log('🟡 Hash not cached, assuming it is downloading/queued');
+      console.log('🟡 Hash not found in TorBox cache.');
       return {
         ok: true,
         hash: h,
-        state: 'downloading', // Generic state
+        state: 'not_found',
         cached: false,
-        progress: 50, // Placeholder progress
+        progress: 0,
         cachedUrl: null,
-        updatedAt: Date.now(),
-        message: 'Torrent is being processed by TorBox. Refresh to check again.'
+        updatedAt: Date.now()
       };
 
     } catch (error) { 
