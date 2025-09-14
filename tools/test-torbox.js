@@ -1,13 +1,12 @@
-const { processStream } = require('../src/services/torboxService');
+const TorBoxService = require('../src/services/torboxService');
+const { extractInfoHash } = require('../src/api/torbox');
 
 // =====================================================================================
-// ⚠️ REPLACE THIS with your real API key and known cached/uncached magnets ⚠️
+// ⚠️ PLEASE REPLACE THESE VALUES with your actual TorBox API key and a known info hash ⚠️
 // =====================================================================================
 const TORBOX_API_KEY = '6de6dec9-68b5-43d3-98b6-e119b21daab3';
-const CACHED_MAGNET_LINK =
-  'magnet:?xt=urn:btih:18b35734d97bb269adadc71370cedbfbf1b0ae54'; // known cached
-const UNCACHED_MAGNET_LINK =
-  'magnet:?xt=urn:btih:zmg56ugjkgjmdsd2d5r5o7j2dh36gitj'; // known uncached
+const CACHED_MAGNET_LINK = 'magnet:?xt=urn:btih:18b35734d97bb269adadc71370cedbfbf1b0ae54'; // <--- Hash from user, known to be cached
+const UNCACHED_MAGNET_LINK = 'magnet:?xt=urn:btih:zmg56ugjkgjmdsd2d5r5o7j2dh36gitj'; // <--- Replace with a hash you know is NOT on TorBox
 // =====================================================================================
 
 async function testCached() {
@@ -15,24 +14,25 @@ async function testCached() {
   console.log('    Testing a CACHED torrent...   ');
   console.log('=================================\n');
 
-  try {
-    const result = await processStream(CACHED_MAGNET_LINK);
-    console.log('🔎 Raw cached test response:', JSON.stringify(result, null, 2));
+  const infoHash = extractInfoHash(CACHED_MAGNET_LINK);
+  const torboxService = new TorBoxService(TORBOX_API_KEY);
+  const torrentInfo = { id: `test:${infoHash}`, name: 'Test Torrent', size: '1.2 GB' };
 
-    if (!result) {
-      console.error('❌ TEST FAILED: processStream returned null/undefined.');
-    } else if (result.status === 'cached') {
-      console.log('✅ TEST PASSED: Returned a cached status.');
-    } else if (result.status === 'error') {
-      console.error(
-        '❌ TEST FAILED: The service returned an error for a supposedly cached torrent:',
-        result.error
-      );
+  try {
+    const stream = await torboxService.processStream(CACHED_MAGNET_LINK, torrentInfo);
+    console.log('✅ processStream response for cached torrent:', stream);
+
+    if (!stream) {
+      console.error('❌ TEST FAILED: processStream returned null or undefined.');
+    } else if (stream.url && stream.title.includes('🟢 Cached')) {
+      console.log('✅ TEST PASSED: Returned a cached stream URL with the correct title.');
+    } else if (stream.title.includes('🔴 Error')) {
+      console.error('❌ TEST FAILED: The service returned an error for a supposedly cached torrent.', stream.title);
     } else {
-      console.error('❌ TEST FAILED: Unexpected object for cached torrent:', result);
+      console.error('❌ TEST FAILED: Returned an unexpected object for a cached torrent:', stream);
     }
-  } catch (err) {
-    console.error('❌ Exception during cached test:', err);
+  } catch (error) {
+    console.error('❌ An error occurred during the cached test:', error);
   }
 }
 
@@ -41,39 +41,36 @@ async function testUncached() {
   console.log('   Testing an UNCACHED torrent...  ');
   console.log('=================================\n');
 
-  try {
-    const result = await processStream(UNCACHED_MAGNET_LINK);
-    console.log('🔎 Raw uncached test response:', JSON.stringify(result, null, 2));
+  const infoHash = extractInfoHash(UNCACHED_MAGNET_LINK);
+  const torboxService = new TorBoxService(TORBOX_API_KEY);
+  const torrentInfo = { id: `test:${infoHash}`, name: 'Test Torrent', size: '500 MB' };
 
-    if (!result) {
-      console.error('❌ TEST FAILED: processStream returned null/undefined.');
-    } else if (result.status === 'added') {
-      console.log('✅ TEST PASSED: Returned an added status.');
-    } else if (result.status === 'error') {
-      console.error(
-        '❌ TEST FAILED: The service returned an error when trying to add a torrent:',
-        result.error
-      );
+  try {
+    const stream = await torboxService.processStream(UNCACHED_MAGNET_LINK, torrentInfo);
+    console.log('✅ processStream response for uncached torrent:', stream);
+
+    if (!stream) {
+      console.error('❌ TEST FAILED: processStream returned null or undefined.');
+    } else if (stream.externalUrl && stream.title.includes('🟡 Added to queue')) {
+      console.log('✅ TEST PASSED: Returned an external URL for adding to the queue.');
+    } else if (stream.title.includes('🔴 Error')) {
+      console.error('❌ TEST FAILED: The service returned an error when trying to add a torrent.', stream.title);
     } else {
-      console.error('❌ TEST FAILED: Unexpected object for uncached torrent:', result);
+      console.error('❌ TEST FAILED: Returned an unexpected object for an uncached torrent:', stream);
     }
-  } catch (err) {
-    console.error('❌ Exception during uncached test:', err);
+  } catch (error) {
+    console.error('❌ An error occurred during the uncached test:', error);
   }
 }
 
 async function run() {
   if (TORBOX_API_KEY === 'YOUR_TORBOX_API_KEY') {
-    console.error('❌ Please set TORBOX_API_KEY in tools/test-torbox.js');
+    console.error('❌ Please replace YOUR_TORBOX_API_KEY in tools/test-torbox.js with your TorBox API key.');
     return;
   }
-
-  process.env.TORBOX_API_KEY = TORBOX_API_KEY;
-
   await testCached();
   await testUncached();
-
-  console.log('\n🚀 All tests finished.\n');
+  console.log('\n🚀 All tests finished.');
 }
 
 run();
