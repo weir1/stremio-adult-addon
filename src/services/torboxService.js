@@ -95,7 +95,14 @@ class TorBoxService {
 
       if (cacheResult.cached) {
         console.log('✅ Hash is cached in TorBox, attempting to get torrent info...');
-        const torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
+        let torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
+
+        if (!torrent) {
+          console.log('🟡 Torrent is cached but not in mylist, adding it now...');
+          await addMagnet({ magnet: `magnet:?xt=urn:btih:${h}`, token: this.apiKey });
+          // try to get the torrent info again after adding it
+          torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
+        }
 
         if (torrent) {
           const streamResult = await getStreamUrl({ torrent, token: this.apiKey });
