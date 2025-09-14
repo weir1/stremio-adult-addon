@@ -1,4 +1,4 @@
-const { getCachedTorrents } = require('../utils/torrentCache');
+const { getCachedTorrents, initialCachePromise } = require('../utils/torrentCache');
 const { generatePoster } = require('../utils/posterGenerator');
 const FansDBService = require('../services/fansdbService');
 
@@ -20,6 +20,7 @@ class CatalogHandler {
     }
     
     try {
+      await initialCachePromise;
       let torrents = [];
       if (id === 'adult-trending') torrents = await getCachedTorrents('trending');
       else if (id === 'adult-popular') torrents = await getCachedTorrents('popular');

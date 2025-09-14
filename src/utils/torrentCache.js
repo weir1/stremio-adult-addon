@@ -40,6 +40,6 @@ function getTorrents() {
 }
 
 // Initial cache fill on startup
-refreshCache();
+const initialCachePromise = refreshCache();
 
-module.exports = { getCachedTorrents, getTorrents, refreshCache };
+module.exports = { getCachedTorrents, getTorrents, refreshCache, initialCachePromise };
