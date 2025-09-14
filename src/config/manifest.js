@@ -2,7 +2,7 @@ const ID_PREFIXES = ['T25','TW9','TWl','UG9','Qnl','TW9t'];
 
 const manifest = {
   id: 'org.stremio.adult.addon',
-  version: '1.3.0',
+  version: '1.3.1',
   name: 'Adult Content Addon',
   description: 'Stream adult content from 1337x with TorBox integration. Configure with your TorBox API key for enhanced streaming.',
   resources: [
