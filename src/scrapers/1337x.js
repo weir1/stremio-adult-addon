@@ -20,66 +20,38 @@ class Scraper1337x {
 
     async _makeRequest(url) {
         if (this.userConfig && this.userConfig.flaresolverrUrl) {
-            const flaresolverrUrl = new URL(this.userConfig.flaresolverrUrl);
-            const http = flaresolverrUrl.protocol === 'https:' ? require('https') : require('http');
+            try {
+                const flaresolverrUrl = this.userConfig.flaresolverrUrl.endsWith('/')
+                    ? `${this.userConfig.flaresolverrUrl}v1`
+                    : `${this.userConfig.flaresolverrUrl}/v1`;
 
-            const postData = JSON.stringify({
-                cmd: 'request.get',
-                url: url,
-                maxTimeout: 60000
-            });
+                console.log(`  -> Posting to FlareSolverr at ${flaresolverrUrl}`);
+                const response = await axios.post(flaresolverrUrl, {
+                    cmd: 'request.get',
+                    url: url,
+                    maxTimeout: 120000
+                }, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 130000
+                });
 
-            let hostname = flaresolverrUrl.hostname;
-
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                hostname = '172.17.0.1'; // Try the default docker bridge IP
-                console.log(`  -> Overriding hostname to Docker bridge IP: ${hostname}`);
-            }
-
-            const options = {
-                hostname: hostname,
-                port: flaresolverrUrl.port || (flaresolverrUrl.protocol === 'https:' ? 443 : 80),
-                path: '/v1',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(postData)
+                if (response.data && response.data.solution) {
+                    return response.data.solution.response;
+                } else {
+                    throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
                 }
-            };
-
-            return new Promise((resolve, reject) => {
-                console.log(`  -> Posting to FlareSolverr at ${this.userConfig.flaresolverrUrl}v1 using ${flaresolverrUrl.protocol.slice(0, -1)} module`);
-                const req = http.request(options, (res) => {
-                    let data = '';
-                    res.on('data', (chunk) => {
-                        data += chunk;
-                    });
-                    res.on('end', () => {
-                        try {
-                            const jsonData = JSON.parse(data);
-                            if (jsonData.solution) {
-                                console.log('  -> FlareSolverr solution found.');
-                                resolve(jsonData.solution.response);
-                            } else {
-                                console.error('❌ FlareSolverr did not return a solution.');
-                                reject(new Error(`FlareSolverr did not return a solution. Response: ${data}`));
-                            }
-                        } catch (e) {
-                            console.error(`Error parsing FlareSolverr response: ${e.message}`);
-                            console.error(`Received data: ${data}`);
-                            reject(e);
-                        }
-                    });
-                });
-
-                req.on('error', (e) => {
-                    console.error(`❌ FlareSolverr request failed: ${e.message}`);
-                    reject(e);
-                });
-
-                req.write(postData);
-                req.end();
-            });
+            } catch (error) {
+                console.error('❌ FlareSolverr request failed:');
+                if (error.response) {
+                    console.error('  -> Status:', error.response.status);
+                    console.error('  -> Data:', JSON.stringify(error.response.data));
+                } else if (error.request) {
+                    console.error('  -> No response received:', error.request);
+                } else {
+                    console.error('  -> Error setting up request:', error.message);
+                }
+                throw error;
+            }
         } else {
             const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
             return response.data;
