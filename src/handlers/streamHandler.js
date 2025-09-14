@@ -77,6 +77,7 @@ class StreamHandler {
         const torboxService = new TorBoxService(userConfig.torboxApiKey);
         const torboxStream = await torboxService.processStream(t.magnetLink, t);
         
+        console.log('🔍 TorBox stream result:', torboxStream);
         if (torboxStream) {
           streams.push(torboxStream);
           console.log('✅ TorBox stream added');
