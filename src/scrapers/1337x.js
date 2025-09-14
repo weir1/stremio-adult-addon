@@ -3,86 +3,79 @@ const cheerio = require('cheerio');
 
 class Scraper1337x {
     constructor() {
-        this.baseUrl = 'https://1337x.to';
+        this.baseUrls = ['https://1337x.to', 'https://1337x.st', 'https://1337x.unblockninja.com'];
     }
 
-    // Standardized ID generation
     generateTorrentId(name, link) {
         const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
         const cleanLink = link.replace(/[^a-zA-Z0-9]/g, '');
         const combined = cleanName + '_' + cleanLink;
-        return Buffer.from(combined).toString('base64')
-            .replace(/[^a-zA-Z0-9]/g, '')
-            .substring(0, 20);
+        return Buffer.from(combined).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
     }
 
-    // Decode HTML entities in URLs
     decodeHtmlEntities(str) {
-        return str
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'");
+        return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    }
+
+    async getTorrentDetails(torrentUrl) {
+        try {
+            console.log(`  -> Scraping details for: ${torrentUrl.substring(0, 60)}...`);
+            const response = await axios.get(torrentUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 });
+            const $ = cheerio.load(response.data);
+            let magnetLink = $('a[href^="magnet:"]').attr('href');
+            if (magnetLink) magnetLink = this.decodeHtmlEntities(magnetLink);
+            let posterEl = $('#description img.descrimg').first();
+            let poster = posterEl.attr('data-original') || posterEl.attr('src');
+            if (poster && !poster.startsWith('http')) poster = 'https:' + poster;
+            return { magnetLink: magnetLink || null, poster: poster || null };
+        } catch (error) {
+            if (error.code !== 'ECONNABORTED') console.error(`  -> Error for ${torrentUrl}: ${error.message}`);
+            return { magnetLink: null, poster: null };
+        }
     }
 
     async scrapeCategory(categoryPath) {
-        try {
-            const url = `${this.baseUrl}${categoryPath}`;
-            console.log('Scraping URL:', url);
-            
-            const response = await axios.get(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                },
-                timeout: 15000
-            });
-            
-            const $ = cheerio.load(response.data);
-            const torrents = [];
-            
-            $('table tbody tr').each((index, element) => {
-                try {
-                    const $row = $(element);
-                    
+        for (const baseUrl of this.baseUrls) {
+            try {
+                const url = `${baseUrl}${categoryPath}`;
+                console.log(`Scraping category list from: ${url}`);
+                const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
+                const $ = cheerio.load(response.data);
+                const torrents = [];
+                $('table tbody tr').each((i, el) => {
+                    const $row = $(el);
                     const nameLink = $row.find('td:nth-child(1) a:last-child');
                     const name = nameLink.text().trim();
                     const link = nameLink.attr('href');
-                    
                     const seeders = parseInt($row.find('td:nth-child(2)').text().trim()) || 0;
-                    const leechers = parseInt($row.find('td:nth-child(3)').text().trim()) || 0;
-                    const sizeText = $row.find('td:nth-child(5)').text().trim();
-                    const uploader = $row.find('td:nth-child(6)').text().trim();
-                    
                     if (name && link && seeders > 0) {
-                        const torrentId = this.generateTorrentId(name, link);
-                        
                         torrents.push({
-                            id: torrentId,
+                            id: this.generateTorrentId(name, link),
                             name: name,
-                            link: this.baseUrl + link,
+                            link: baseUrl + link,
                             seeders: seeders,
-                            leechers: leechers,
-                            size: sizeText,
-                            uploader: uploader
+                            leechers: parseInt($row.find('td:nth-child(3)').text().trim()) || 0,
+                            size: $row.find('td:nth-child(5)').text().trim(),
                         });
-                        
-                        if (index < 3) {
-                            console.log(`🆔 Generated ID: ${torrentId} for: ${name.substring(0, 30)}`);
-                        }
                     }
-                } catch (err) {
-                    // Skip problematic rows
+                });
+
+                const topTorrents = torrents.slice(0, 25);
+                console.log(`Found ${topTorrents.length} initial torrents. Enriching with details...`);
+                const enrichedTorrents = [];
+                for (const torrent of topTorrents) {
+                    const details = await this.getTorrentDetails(torrent.link);
+                    if (details.magnetLink) enrichedTorrents.push({ ...torrent, ...details });
+                    await new Promise(resolve => setTimeout(resolve, 250));
                 }
-            });
-            
-            console.log(`Found ${torrents.length} torrents from ${url}`);
-            return torrents.slice(0, 20);
-            
-        } catch (error) {
-            console.error('Scraping error for', categoryPath, ':', error.message);
-            return [];
+                console.log(`✅ Successfully enriched ${enrichedTorrents.length} torrents from ${baseUrl}`);
+                return enrichedTorrents;
+            } catch (error) {
+                console.warn(`⚠️ Failed to scrape from ${baseUrl}: ${error.message}. Trying next domain...`);
+            }
         }
+        console.error(`❌ Scraping failed for all domains for category: ${categoryPath}`);
+        return [];
     }
 
     async scrapePopular() {
@@ -91,43 +84,6 @@ class Scraper1337x {
 
     async scrapeTrending() {
         return this.scrapeCategory('/trending/d/xxx/');
-    }
-
-    async getTorrentDetails(torrentUrl) {
-        try {
-            console.log('Getting details for:', torrentUrl);
-            
-            const response = await axios.get(torrentUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                timeout: 10000
-            });
-            
-            const $ = cheerio.load(response.data);
-            
-            // Extract magnet link and decode HTML entities
-            let magnetLink = $('a[href^="magnet:"]').attr('href');
-            if (magnetLink) {
-                magnetLink = this.decodeHtmlEntities(magnetLink);
-                console.log('✅ Magnet link found and decoded!');
-            } else {
-                console.log('❌ No magnet link found');
-            }
-            
-            const description = $('.torrent-detail-page .clearfix').text().trim() || 
-                              $('.box-info-detail').text().trim() || 
-                              'No description available';
-            
-            return {
-                magnetLink: magnetLink || null,
-                description: description
-            };
-            
-        } catch (error) {
-            console.error('Error getting torrent details:', error.message);
-            return null;
-        }
     }
 }
 

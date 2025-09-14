@@ -73,7 +73,7 @@ class PosterService {
               searchScene(term: $term, limit: 1) {
                 id
                 title
-                poster: background {
+                images {
                   url
                 }
                 studio {
@@ -94,9 +94,9 @@ class PosterService {
       }
 
       const scene = result.data?.searchScene?.[0];
-      if (scene && scene.poster?.url) {
+      if (scene && scene.images && scene.images.length > 0 && scene.images[0].url) {
         console.log(`✅ Found ThePornDB poster for "${scene.title}"`);
-        return scene.poster.url;
+        return scene.images[0].url;
       }
 
       console.log(`  - No results from ThePornDB for "${term}"`);
@@ -146,6 +146,13 @@ class PosterService {
         await new Promise(resolve => setTimeout(resolve, 250)); // Rate limit
       }
 
+      // 2nd fallback: Use poster scraped from 1337x
+      if (!posterUrl && torrentInfo.poster) {
+        console.log(`✅ Using 1337x poster for "${torrentName.substring(0, 30)}"`);
+        posterUrl = torrentInfo.poster;
+      }
+
+      // 3rd fallback: Generate a placeholder
       if (!posterUrl) {
         posterUrl = this.generateEnhancedPoster(torrentName, torrentInfo);
       }

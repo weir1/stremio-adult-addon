@@ -15,19 +15,17 @@ class StreamHandler {
       const all = [...trending, ...popular];
       const t = all.find(x => x.id === id);
       
-      if (!t) return { streams: [] };
-
-      const Scraper1337x = require('../scrapers/1337x');
-      const scraper = new Scraper1337x();
-      const details = await scraper.getTorrentDetails(t.link);
-      if (!details?.magnetLink) return { streams: [] };
+      if (!t || !t.magnetLink) {
+        console.log('❌ Could not find torrent or magnet link in cache for ID:', id);
+        return { streams: [] };
+      }
 
       const streams = [];
       
-      // Always provide P2P stream
+      // Always provide P2P stream from cached magnet link
       const p2pStream = {
-        title: `🔴 Direct P2P - ${t.size} (${t.seeders}S/${t.leechers}L)`,
-        url: details.magnetLink,
+        title: `🔴 P2P - ${t.size} (${t.seeders}S)`,
+        url: t.magnetLink,
         behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
       };
       streams.push(p2pStream);
@@ -36,7 +34,7 @@ class StreamHandler {
       if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
         console.log('🟡 TorBox integration enabled, processing...');
         const torboxService = new TorBoxService(userConfig.torboxApiKey);
-        const torboxStream = await torboxService.processStream(details.magnetLink, t);
+        const torboxStream = await torboxService.processStream(t.magnetLink, t);
         
         if (torboxStream) {
           streams.push(torboxStream);
