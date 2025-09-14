@@ -39,6 +39,7 @@ const addonMiddleware = (req, res, next) => {
 // Route for addon requests with optional configuration
 router.get('/:config?/manifest.json', addonMiddleware);
 router.get('/:config?/catalog/:type/:id.json', addonMiddleware);
+router.get('/:config?/catalog/:type/:id/:extra.json', addonMiddleware);
 router.get('/:config?/meta/:type/:id.json', addonMiddleware);
 router.get('/:config?/stream/:type/:id.json', addonMiddleware);
 
