@@ -11,6 +11,7 @@ const getManifest = (idPrefixes = []) => ({
   types: ['movie', 'channel'],
   idPrefixes: idPrefixes,
   catalogs: [
+    { type: 'movie', id: 'adult-search', name: '🔍 Search Results', extra: [{ name: 'search', isRequired: true }] },
     { type: 'movie', id: 'adult-trending', name: '🔥 Trending Torrents' },
     { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Torrents' },
     { type: 'channel', id: 'fansdb-top', name: '💃 Top FansDB Performers' }

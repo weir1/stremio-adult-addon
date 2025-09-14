@@ -78,6 +78,51 @@ class Scraper1337x {
         return [];
     }
 
+    async search(query) {
+        const encodedQuery = encodeURIComponent(query).replace(/%20/g, '+');
+        for (const baseUrl of this.baseUrls) {
+            try {
+                const url = `${baseUrl}/search/${encodedQuery}/1/`;
+                console.log(`Scraping search results from: ${url}`);
+                const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
+                const $ = cheerio.load(response.data);
+                const torrents = [];
+                $('table tbody tr').each((i, el) => {
+                    const $row = $(el);
+                    const nameLink = $row.find('td.coll-1 a:last-child');
+                    const name = nameLink.text().trim();
+                    const link = nameLink.attr('href');
+                    const seeders = parseInt($row.find('td.coll-2').text().trim()) || 0;
+                    if (name && link && seeders > 0) {
+                        torrents.push({
+                            id: this.generateTorrentId(name, link),
+                            name: name,
+                            link: baseUrl + link,
+                            seeders: seeders,
+                            leechers: parseInt($row.find('td.coll-3').text().trim()) || 0,
+                            size: $row.find('td.coll-4').text().trim(),
+                        });
+                    }
+                });
+
+                const topTorrents = torrents.slice(0, 25);
+                console.log(`Found ${topTorrents.length} initial torrents. Enriching with details...`);
+                const enrichedTorrents = [];
+                for (const torrent of topTorrents) {
+                    const details = await this.getTorrentDetails(torrent.link);
+                    if (details.magnetLink) enrichedTorrents.push({ ...torrent, ...details });
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                console.log(`✅ Successfully enriched ${enrichedTorrents.length} torrents from ${baseUrl}`);
+                return enrichedTorrents;
+            } catch (error) {
+                console.warn(`⚠️ Failed to scrape from ${baseUrl}: ${error.message}. Trying next domain...`);
+            }
+        }
+        console.error(`❌ Scraping failed for all domains for query: ${query}`);
+        return [];
+    }
+
     async scrapePopular() {
         return this.scrapeCategory('/popular-xxx');
     }
