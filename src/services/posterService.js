@@ -1,5 +1,11 @@
 const { request } = require('undici');
 
+class PosterService {
+  constructor() {
+    this.cache = new Map();
+    this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
+  }
+
   // Enhanced search term extraction
   extractSearchTerms(torrentName) {
     let cleaned = torrentName
@@ -152,7 +158,5 @@ const { request } = require('undici');
     }
   }
 }
-
-module.exports = new PosterService();
 
 module.exports = new PosterService();
