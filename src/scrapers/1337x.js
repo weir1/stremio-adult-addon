@@ -27,7 +27,12 @@ class Scraper1337x {
                 maxTimeout: 60000
             });
 
-            const flaresolverrUrl = new URL(this.userConfig.flaresolverrUrl);
+            let flaresolverrUrlString = this.userConfig.flaresolverrUrl;
+            if (flaresolverrUrlString.includes('localhost')) {
+                flaresolverrUrlString = flaresolverrUrlString.replace('localhost', '127.0.0.1');
+                console.log(`  -> Changed localhost to 127.0.0.1: ${flaresolverrUrlString}`);
+            }
+            const flaresolverrUrl = new URL(flaresolverrUrlString);
 
             const options = {
                 hostname: flaresolverrUrl.hostname,
@@ -41,7 +46,7 @@ class Scraper1337x {
             };
 
             return new Promise((resolve, reject) => {
-                console.log(`  -> Posting to FlareSolverr at ${this.userConfig.flaresolverrUrl} using http module`);
+                console.log(`  -> Posting to FlareSolverr at ${flaresolverrUrlString} using http module`);
                 const req = http.request(options, (res) => {
                     let data = '';
                     res.on('data', (chunk) => {
