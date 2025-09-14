@@ -2,6 +2,8 @@ const express = require('express');
 const corsMiddleware = require('./middleware/cors');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const addonRoutes = require('./routes/addonRoutes');
+const ConfigService = require('./services/configService');
+const { getManifest } = require('./config/manifest');
 
 async function startServer() {
   const app = express();
@@ -9,15 +11,26 @@ async function startServer() {
   // Apply middleware
   app.use(corsMiddleware);
 
-  // Mount routes
-  // The addon routes are now handled by the addon SDK itself via getRouter
-  // We need to initialize our addon handler first
-  console.log('Initializing addon...');
-  // Note: The AddonHandler will be initialized within the routes
-  // to handle different configurations per request.
+  // Health check and root endpoint
+  app.get('/', (req, res) => {
+    const manifest = getManifest(); // Get a base manifest for info
+    res.json({
+      ok: true,
+      msg: 'Adult Content Addon is running.',
+      version: manifest.version,
+      configure: '/configure',
+      manifest: '/manifest.json'
+    });
+  });
 
+  // Configuration page
+  app.get('/configure', (req, res) => {
+    const configHtml = ConfigService.generateConfigPage();
+    res.type('text/html').send(configHtml);
+  });
+
+  // Stremio addon routes
   app.use('/', addonRoutes);
-  // app.use('/configure', configureRoutes); // Example for a config page
 
   // Error handling
   app.use(errorHandler);
