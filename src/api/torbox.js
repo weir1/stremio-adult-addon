@@ -186,20 +186,18 @@ async function getStreamUrl({ torrent, token }) {
   }
 
   // Now, create the stream using the correct endpoint
-  const requestDlUrl = `${TORBOX_BASE}/v1/api/torrents/requestdl`;
-  const requestDlBody = { torrent_id: torrentId, file_id: fileId };
+  const requestDlUrl = `${TORBOX_BASE}/v1/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${fileId}&token=${token}`;
   
   console.log(`⚡️ Requesting download link from TorBox: ${requestDlUrl}`);
 
   try {
-    const res = await axios.post(requestDlUrl, requestDlBody, {
+    const res = await axios.get(requestDlUrl, {
       headers: {
         ...authHeaders(token),
-        'Content-Type': 'application/json',
       },
     });
 
-    const streamUrl = res.data;
+    const streamUrl = res.data.data;
     
     if (streamUrl && typeof streamUrl === 'string') {
       console.log(`✅ Got stream URL from requestdl: ${streamUrl}`);
