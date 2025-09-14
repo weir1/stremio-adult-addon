@@ -82,13 +82,12 @@ async function postForm(url, data, headers = {}) {
 // Check if cached by hash
 async function isCached({ magnet, infoHash, token }) {
   const hash = infoHash || extractInfoHash(magnet);
-  const headers = authHeaders(token);
   const url = hash
     ? `${TORBOX_BASE}/v1/api/torrents/checkcached?hash=${encodeURIComponent(hash)}`
     : `${TORBOX_BASE}/v1/api/torrents/checkcached?magnet=${encodeURIComponent(magnet || '')}`;
   
   console.log('🔍 Checking TorBox cache...');
-  const { ok, status, json } = await getJson(url, headers);
+  const { ok, status, json } = await getJson(url, authHeaders(token));
   console.log('🔍 TorBox cache response:', { ok, status, cached: !!(ok && json?.data && Object.keys(json.data).length > 0) });
   
   // TorBox returns success:true with empty data{} when not cached
@@ -173,7 +172,9 @@ async function getStreamUrl({ torrent, token }) {
     return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
   });
 
+  console.log(' Torrent object:', torrent);
   const best = videoCandidates.sort((a, b) => b.size - a.size)[0] || files[0];
+  console.log('Best video file:', best);
 
   if (!best) {
     console.log('❌ No suitable files found in torrent');
@@ -181,10 +182,15 @@ async function getStreamUrl({ torrent, token }) {
   }
 
   const torrentId = torrent.id;
-  const fileId = best.id !== undefined ? best.id : files.indexOf(best);
+  const fileId = best.id;
+
+  if (fileId === undefined) {
+    console.log('❌ No file ID found for the best video file');
+    return { url: null, filename: null };
+  }
 
   // Now, create the stream using the correct endpoint
-  const streamUrl = `${TORBOX_BASE}/v1/api/stream/createstream?id=${torrentId}&file_id=${fileId}&token=${token}`;
+  const streamUrl = `${TORBOX_BASE}/v1/api/stream/getstreamdata?token=${token}&presigned_token=${torrent.auth_id}&id=${torrentId}&file_id=${fileId}`;
   
   console.log(`⚡️ Requesting stream from TorBox: ${streamUrl}`);
 

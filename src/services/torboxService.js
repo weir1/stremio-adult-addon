@@ -1,4 +1,4 @@
-const { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentId } = require('../api/torbox');
+const { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo } = require('../api/torbox');
 
 class TorBoxService {
   constructor(apiKey) {
@@ -94,11 +94,11 @@ class TorBoxService {
       const cacheResult = await isCached({ infoHash: h, token: this.apiKey });
 
       if (cacheResult.cached) {
-        console.log('✅ Hash is cached in TorBox, attempting to get torrent ID...');
-        const torrentId = await getTorrentId({ infoHash: h, token: this.apiKey });
+        console.log('✅ Hash is cached in TorBox, attempting to get torrent info...');
+        const torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
 
-        if (torrentId) {
-          const streamResult = await getStreamUrl({ torrentId, infoHash: h, token: this.apiKey });
+        if (torrent) {
+          const streamResult = await getStreamUrl({ torrent, token: this.apiKey });
 
           if (streamResult.url) {
             return {
