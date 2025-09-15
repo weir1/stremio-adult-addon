@@ -12,7 +12,7 @@ class ScraperJackett {
         }
 
         const encodedQuery = encodeURIComponent(query);
-        const url = `${this.userConfig.jackettUrl}/api/v2.0/indexers/all/results?apikey=${this.userConfig.jackettApiKey}&Query=${encodedQuery}`;
+        const url = `${this.userConfig.jackettUrl.replace(/\/$/, "")}/api/v2.0/indexers/all/results?apikey=${this.userConfig.jackettApiKey}&Query=${encodedQuery}`;
 
         try {
             console.log(`Scraping search results from: ${url}`);
