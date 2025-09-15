@@ -33,7 +33,7 @@ class ScraperJackett {
             console.log(`Found ${topTorrents.length} initial torrents.`);
             return topTorrents;
         } catch (error) {
-            console.error(`❌ Scraping failed for query: ${query}`);
+            console.error(`❌ Scraping failed for query: ${query}`, error);
             return [];
         }
     }
