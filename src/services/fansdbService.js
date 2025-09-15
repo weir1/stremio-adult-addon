@@ -21,7 +21,7 @@ class FansDBService {
         }
       }
     `;
-    const variables = { input: { page, limit, sort: 'TRENDING' } };
+    const variables = { input: { page, limit, sort: 'VIEWS_MONTHLY' } };
     const { ok, data, error } = await graphQlQuery(query, variables, this.apiKey);
 
     if (ok && data?.queryPerformers?.performers) {

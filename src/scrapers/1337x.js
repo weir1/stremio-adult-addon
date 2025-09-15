@@ -21,6 +21,9 @@ class Scraper1337x {
     async _makeRequest(url) {
         if (this.userConfig && this.userConfig.flaresolverrUrl) {
             try {
+                // First, check if FlareSolverr is running
+                await axios.get(this.userConfig.flaresolverrUrl, { timeout: 5000 });
+
                 const flaresolverrUrl = this.userConfig.flaresolverrUrl.endsWith('/')
                     ? `${this.userConfig.flaresolverrUrl}v1`
                     : `${this.userConfig.flaresolverrUrl}/v1`;
@@ -44,7 +47,9 @@ class Scraper1337x {
                 }
             } catch (error) {
                 console.error(`❌ FlareSolverr request failed for URL: ${this.userConfig.flaresolverrUrl}`);
-                if (error.response) {
+                if (error.code === 'ECONNABORTED' || error.code === 'ECONNREFUSED') {
+                    console.error('  -> FlareSolverr is not running or is not accessible at the provided URL. Falling back to direct request.');
+                } else if (error.response) {
                     console.error('  -> Status:', error.response.status);
                     console.error('  -> Data:', JSON.stringify(error.response.data));
                 } else if (error.request) {
@@ -52,7 +57,9 @@ class Scraper1337x {
                 } else {
                     console.error('  -> Error setting up request:', error.message);
                 }
-                throw error;
+                // Fallback to direct request
+                const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
+                return response.data;
             }
         } else {
             const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 });
