@@ -13,7 +13,7 @@ class ScraperJackett {
         }
 
         const baseUrl = this.userConfig.jackettUrl.replace(/\/$/, "");
-        const url = `${baseUrl}/api/v2.0/indexers/all/results/torznab/api?apikey=${this.userConfig.jackettApiKey}&t=search&q=${encodeURIComponent(query)}`;
+        const url = `${baseUrl}/api/v2.0/indexers/all/results/torznab?apikey=${this.userConfig.jackettApiKey}&t=search&q=${encodeURIComponent(query)}`;
 
         try {
             console.log(`Scraping search results from: ${url}`);
