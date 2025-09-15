@@ -16,7 +16,7 @@ class ScraperJackett {
 
         try {
             console.log(`Scraping search results from: ${url}`);
-            const response = await axios.get(url, { timeout: 15000 });
+            const response = await axios.get(url, { timeout: 30000 });
             const results = response.data.Results;
 
             const torrents = results.map(result => ({
