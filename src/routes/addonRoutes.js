@@ -11,6 +11,13 @@ const router = express.Router();
 const addonMiddleware = (req, res, next) => {
   const configString = req.params.config;
   const userConfig = configString ? ConfigService.parseConfigFromUrl(configString) : {};
+
+  // Automatically switch to local Jackett if addon is accessed locally
+  const isLocalRequest = req.hostname === 'localhost' || req.hostname === '127.0.0.1';
+  if (isLocalRequest && userConfig.jackettUrl) {
+    console.log(`🔍 Detected local request. Forcing Jackett URL to http://localhost:9117`);
+    userConfig.jackettUrl = 'http://localhost:9117';
+  }
   
   const addon = new AddonHandler(userConfig);
   const sdkRouter = getRouter(addon.getInterface());
