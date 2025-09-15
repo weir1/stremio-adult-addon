@@ -121,6 +121,23 @@ class ConfigService {
             </div>
         </div>
 
+        <div class="section jackett">
+            <h3>⚫ Jackett Integration (Optional)</h3>
+            <p style="color: #cccccc; margin-bottom: 15px;">Use Jackett for searching torrents</p>
+            
+            <div class="form-group">
+                <label for="jackettUrl">Jackett URL:</label>
+                <input type="text" id="jackettUrl" name="jackettUrl" placeholder="http://localhost:9117">
+                <small>The URL of your Jackett instance</small>
+            </div>
+
+            <div class="form-group">
+                <label for="jackettApiKey">Jackett API Key:</label>
+                <input type="text" id="jackettApiKey" name="jackettApiKey" placeholder="Enter your Jackett API key...">
+                <small>Get from your Jackett instance</small>
+            </div>
+        </div>
+
         <div class="section torbox">
             <h3>🟡 TorBox Integration (Optional)</h3>
             <p style="color: #cccccc; margin-bottom: 15px;">Enable cached streaming with TorBox cloud torrent service</p>
@@ -232,6 +249,8 @@ class ConfigService {
             const fansdbApiKey = document.getElementById('fansdbApiKey').value.trim();
             const enableFansDB = document.getElementById('enableFansDB').checked;
             const flaresolverrUrl = document.getElementById('flaresolverrUrl').value.trim();
+            const jackettUrl = document.getElementById('jackettUrl').value.trim();
+            const jackettApiKey = document.getElementById('jackettApiKey').value.trim();
             
             let baseUrl = 'https://stremio.moindigital.in';
             let manifestUrl = baseUrl + '/manifest.json';
@@ -246,6 +265,8 @@ class ConfigService {
             if (fansdbApiKey) config.fansdbApiKey = fansdbApiKey;
             if (enableFansDB) config.enableFansDB = enableFansDB;
             if (flaresolverrUrl) config.flaresolverrUrl = flaresolverrUrl;
+            if (jackettUrl) config.jackettUrl = jackettUrl;
+            if (jackettApiKey) config.jackettApiKey = jackettApiKey;
             
             // Create encoded URL if any config is set
             if (Object.keys(config).length > 0) {
@@ -302,6 +323,8 @@ class ConfigService {
         document.getElementById('fansdbApiKey').addEventListener('input', updateManifestUrl);
         document.getElementById('enableFansDB').addEventListener('change', updateManifestUrl);
         document.getElementById('flaresolverrUrl').addEventListener('input', updateManifestUrl);
+        document.getElementById('jackettUrl').addEventListener('input', updateManifestUrl);
+        document.getElementById('jackettApiKey').addEventListener('input', updateManifestUrl);
         
         updateManifestUrl();
     </script>
