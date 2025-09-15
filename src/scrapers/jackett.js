@@ -17,7 +17,7 @@ class ScraperJackett {
 
         try {
             console.log(`Scraping search results from: ${url}`);
-            const response = await axios.get(url, { timeout: 30000 });
+            const response = await axios.get(url, { timeout: 120000 });
             const xml = response.data;
 
             const result = await parseStringPromise(xml);
