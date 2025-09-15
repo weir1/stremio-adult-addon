@@ -29,10 +29,10 @@ class Scraper1337x {
                 const response = await axios.post(flaresolverrUrl, {
                     cmd: 'request.get',
                     url: url,
-                    maxTimeout: 120000
+                    maxTimeout: 60000
                 }, {
                     headers: { 'Content-Type': 'application/json' },
-                    timeout: 130000
+                    timeout: 65000
                 });
 
                 if (response.data && response.data.solution) {
@@ -43,7 +43,7 @@ class Scraper1337x {
                     throw new Error(`FlareSolverr did not return a solution. Response: ${JSON.stringify(response.data)}`);
                 }
             } catch (error) {
-                console.error('❌ FlareSolverr request failed:');
+                console.error(`❌ FlareSolverr request failed for URL: ${this.userConfig.flaresolverrUrl}`);
                 if (error.response) {
                     console.error('  -> Status:', error.response.status);
                     console.error('  -> Data:', JSON.stringify(error.response.data));
