@@ -33,48 +33,64 @@ class StreamHandler {
       }
 
       const streams = [];
+      const torboxService = userConfig?.enableTorBox && userConfig?.torboxApiKey
+        ? new TorBoxService(userConfig.torboxApiKey)
+        : null;
+
       for (const t of torrents) {
         if (!t.magnetLink) continue;
-        const parsed = parseTorrent(t.magnetLink);
-        const files = parsed.files;
+        
+        let parsed;
+        try {
+          parsed = parseTorrent(t.magnetLink);
+        } catch (e) {
+          console.error(`❌ Failed to parse magnet link: ${e.message}`);
+          continue;
+        }
 
-        if (files && files.length > 1) {
-          for (const file of files) {
+        const files = parsed.files || [];
+        if (files.length > 1) {
+          files.forEach((file, fileIndex) => {
             const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-            if (videoExtensions.some(ext => file.name.endsWith(ext))) {
-              const p2pStream = {
-                name: 'P2P Link',
+            if (videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
+              streams.push({
+                name: 'P2P',
                 title: `⚡️ P2P - ${file.name}`,
-                url: t.magnetLink,
-                behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}`, filename: file.name }
-              };
-              streams.push(p2pStream);
+                infoHash: parsed.infoHash,
+                fileIdx: fileIndex,
+                announce: parsed.announce,
+                behaviorHints: { bingeGroup: `p2p-${parsed.infoHash}` }
+              });
 
-              /* if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-                const torboxService = new TorBoxService(userConfig.torboxApiKey);
-                const torboxStream = await torboxService.processStream(t.magnetLink, t, file.name);
-                if (torboxStream) streams.push(torboxStream);
-              } */
+              if (torboxService) {
+                torboxService.processStream(t.magnetLink, t, file.name).then(torboxStream => {
+                  if (torboxStream) streams.push(torboxStream);
+                });
+              }
             }
-          }
+          });
         } else {
-          const p2pStream = {
-            name: 'P2P Link',
+          streams.push({
+            name: 'P2P',
             title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
-            url: t.magnetLink,
-            behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}` }
-          };
-          streams.push(p2pStream);
+            infoHash: parsed.infoHash,
+            announce: parsed.announce,
+            behaviorHints: { bingeGroup: `p2p-${parsed.infoHash}` }
+          });
 
-          /* if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-            const torboxService = new TorBoxService(userConfig.torboxApiKey);
-            const torboxStream = await torboxService.processStream(t.magnetLink, t);
-            if (torboxStream) streams.push(torboxStream);
-          } */
+          if (torboxService) {
+            torboxService.processStream(t.magnetLink, t).then(torboxStream => {
+              if (torboxStream) streams.push(torboxStream);
+            });
+          }
         }
       }
+      // Await all promises from torboxService
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for promises to be added
+      const promises = streams.filter(s => s instanceof Promise);
+      await Promise.all(promises);
 
-      return { streams };
+      return { streams: streams.filter(s => !(s instanceof Promise)) };
     }
     
     if (type !== 'movie') return { streams: [] };
@@ -129,47 +145,57 @@ class StreamHandler {
       const streams = [];
       const files = parsedTorrent.files || [];
       const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-      const videoFiles = files.filter(f => videoExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
 
       const torboxService = userConfig?.enableTorBox && userConfig?.torboxApiKey
         ? new TorBoxService(userConfig.torboxApiKey)
         : null;
 
-      if (videoFiles.length > 1) {
-        console.log(`Found ${videoFiles.length} video files in torrent: ${t.name}`);
-        for (const file of videoFiles) {
-          streams.push({
-            name: 'P2P Link',
-            title: `⚡️ P2P - ${file.name}`,
-            url: magnetLink,
-            description: 'For smoother playback, increase cache in Stremio settings.',
-            behaviorHints: { notWebReady: true, bingeGroup: `p2p-${parsedTorrent.infoHash}`, filename: file.name }
-          });
+      if (files.length > 1) {
+        console.log(`Found ${files.length} video files in torrent: ${t.name}`);
+        files.forEach((file, fileIndex) => {
+          if (videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
+            streams.push({
+              name: 'P2P',
+              title: `⚡️ P2P - ${file.name}`,
+              infoHash: parsedTorrent.infoHash,
+              fileIdx: fileIndex,
+              announce: parsedTorrent.announce,
+              behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
+            });
 
-          /* if (torboxService) {
-            const torboxStream = await torboxService.processStream(magnetLink, t, file.name);
-            if (torboxStream) streams.push(torboxStream);
-          } */
-        }
+            if (torboxService) {
+              torboxService.processStream(magnetLink, t, file.name).then(torboxStream => {
+                if (torboxStream) streams.push(torboxStream);
+              });
+            }
+          }
+        });
       } else {
-        // Single file torrent or no video files detected, create a single stream
         streams.push({
-          name: 'P2P Link',
+          name: 'P2P',
           title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
-          url: magnetLink,
-          description: 'For smoother playback, increase cache in Stremio settings.',
-          behaviorHints: { notWebReady: true, bingeGroup: `p2p-${parsedTorrent.infoHash}` }
+          infoHash: parsedTorrent.infoHash,
+          announce: parsedTorrent.announce,
+          behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
         });
 
-        /* if (torboxService) {
-          const torboxStream = await torboxService.processStream(magnetLink, t);
-          if (torboxStream) streams.push(torboxStream);
-        } */
+        if (torboxService) {
+          torboxService.processStream(magnetLink, t).then(torboxStream => {
+            if (torboxStream) streams.push(torboxStream);
+          });
+        }
       }
 
-      console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
+      // Await all promises from torboxService
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for promises to be added
+      const promises = streams.filter(s => s instanceof Promise);
+      await Promise.all(promises);
+
+      const finalStreams = streams.filter(s => !(s instanceof Promise));
+
+      console.log(`✅ Returning ${finalStreams.length} streams for: ${t.name}`);
       console.log('🎬 ===== STREAM SUCCESS =====');
-      return { streams };
+      return { streams: finalStreams };
     } catch (err) {
       console.error('❌ Stream error:', err);
       return { streams: [] };
