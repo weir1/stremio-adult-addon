@@ -11,10 +11,10 @@ const getManifest = (idPrefixes = []) => ({
   types: ['movie', 'channel'],
   idPrefixes: idPrefixes,
   catalogs: [
-    { type: 'movie', id: 'adult-search', name: '🔍 Search Results', extra: [{ name: 'search', isRequired: true }] },
-    { type: 'movie', id: 'adult-trending', name: '🔥 Trending Torrents' },
-    { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Torrents' },
-    { type: 'channel', id: 'fansdb-top', name: '💃 Top FansDB Performers' }
+    { type: 'movie', id: 'adult-search', name: '🔍 Search Results', extra: [{ name: 'search', isRequired: true }, { name: 'skip' }] },
+    { type: 'movie', id: 'adult-trending', name: '🔥 Trending Torrents', extra: [{ name: 'skip' }] },
+    { type: 'movie', id: 'adult-popular',  name: '⭐ Popular Torrents', extra: [{ name: 'skip' }] },
+    { type: 'channel', id: 'fansdb-top', name: '💃 Top FansDB Performers', extra: [{ name: 'skip' }] }
   ],
   behaviorHints: {
     configurable: true,

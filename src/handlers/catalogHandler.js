@@ -56,9 +56,12 @@ class CatalogHandler {
         };
       }
 
+      const skip = extra.skip || 0;
+      const paginatedTorrents = torrents.slice(skip);
+
       // Generate posters for all torrents with user config
       console.log('🖼️ Generating posters with ThePornDB integration...');
-      const metas = await Promise.all(torrents.map(async (t) => ({
+      const metas = await Promise.all(paginatedTorrents.map(async (t) => ({
         id: t.id,
         type: 'movie',
         name: t.name.length > 80 ? t.name.slice(0,80) + '...' : t.name,
