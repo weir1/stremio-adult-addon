@@ -51,7 +51,8 @@ class ScraperJackett {
                     id = `js_${generateTorrentId(name, link)}`;
                 }
 
-                const magnetLink = item.enclosure && item.enclosure[0] && item.enclosure[0].$.url ? item.enclosure[0].$.url : link;
+                const magnetUrlAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl') : null;
+                const magnetLink = magnetUrlAttr ? magnetUrlAttr.$.value : link;
 
                 return {
                     id: id,
