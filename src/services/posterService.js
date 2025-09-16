@@ -43,7 +43,6 @@ class PosterService {
               searchScene(term: $term, limit: 1) {
                 id
                 title
-                score
                 images {
                   url
                 }
@@ -67,9 +66,7 @@ class PosterService {
       const scene = result.data?.searchScene?.[0];
       if (scene && scene.images && scene.images.length > 0 && scene.images[0].url) {
         console.log(`✅ Found ThePornDB poster for "${scene.title}"`);
-        const rating = scene.score ? parseFloat(scene.score) : null;
-        if (rating) console.log(`  • Rating: ${rating}/10`);
-        return { poster: scene.images[0].url, rating: rating };
+        return { poster: scene.images[0].url, rating: null };
       }
 
       console.log(`  - No results from ThePornDB for "${term}"`);
