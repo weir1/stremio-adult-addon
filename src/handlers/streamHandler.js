@@ -98,6 +98,7 @@ class StreamHandler {
 
       // For 1337x, we can't get the file list without downloading the torrent metadata,
       // so we will treat it as a single file stream to prevent crashes.
+      const streams = [];
       if (id.startsWith('x_')) {
         streams.push({
           name: 'P2P',
