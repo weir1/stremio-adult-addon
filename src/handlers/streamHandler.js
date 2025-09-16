@@ -43,7 +43,7 @@ class StreamHandler {
             const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
             if (videoExtensions.some(ext => file.name.endsWith(ext))) {
               const p2pStream = {
-                name: 'P2P',
+                name: 'P2P Link',
                 title: `⚡️ P2P - ${file.name}`,
                 url: t.magnetLink,
                 behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}`, filename: file.name }
@@ -59,7 +59,7 @@ class StreamHandler {
           }
         } else {
           const p2pStream = {
-            name: 'P2P',
+            name: 'P2P Link',
             title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
             url: t.magnetLink,
             behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}` }
@@ -139,7 +139,7 @@ class StreamHandler {
         console.log(`Found ${videoFiles.length} video files in torrent: ${t.name}`);
         for (const file of videoFiles) {
           streams.push({
-            name: 'P2P',
+            name: 'P2P Link',
             title: `⚡️ P2P - ${file.name}`,
             url: magnetLink,
             description: 'For smoother playback, increase cache in Stremio settings.',
@@ -154,7 +154,7 @@ class StreamHandler {
       } else {
         // Single file torrent or no video files detected, create a single stream
         streams.push({
-          name: 'P2P',
+          name: 'P2P Link',
           title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
           url: magnetLink,
           description: 'For smoother playback, increase cache in Stremio settings.',
