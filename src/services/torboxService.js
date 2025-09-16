@@ -1,8 +1,32 @@
-const { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo } = require('../api/torbox');
+const { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo, deleteTorrent } = require('../api/torbox');
+const axios = require('axios');
 
 class TorBoxService {
   constructor(apiKey) {
     this.apiKey = apiKey;
+  }
+
+  async clearCompletedTorrents() {
+    console.log('🧹 Checking for completed torrents to clear...');
+    const TORBOX_BASE = process.env.TORBOX_BASE || 'https://api.torbox.app';
+    const headers = { authorization: `Bearer ${this.apiKey}` };
+    try {
+        const res = await axios.get(`${TORBOX_BASE}/v1/api/torrents/mylist`, { headers });
+        const torrents = res.data?.data || [];
+        let clearedCount = 0;
+        for (const torrent of torrents) {
+            if (torrent.status === 'downloaded') {
+                console.log(`  -> Deleting completed torrent: ${torrent.name}`);
+                await deleteTorrent({ torrentId: torrent.id, token: this.apiKey });
+                clearedCount++;
+            }
+        }
+        console.log(`✅ Cleared ${clearedCount} completed torrents.`);
+        return clearedCount > 0;
+    } catch (error) {
+        console.error('❌ Failed to get or clear torrent list:', error.message);
+        return false;
+    }
   }
 
   async processStream(magnetLink, torrentInfo, filename = null) {
@@ -51,7 +75,23 @@ class TorBoxService {
 
       if (status.state === 'not_found') {
         console.log('➕ Torrent not in TorBox, adding now...');
-        const addResult = await addMagnet({ magnet: magnetLink, token: this.apiKey });
+        let addResult = await addMagnet({ magnet: magnetLink, token: this.apiKey });
+
+        if (!addResult.ok && addResult.data?.error === 'ACTIVE_LIMIT') {
+            console.log('🟡 TorBox active limit reached. Attempting to clear completed downloads...');
+            const cleared = await this.clearCompletedTorrents();
+            if (cleared) {
+                console.log('✅ Cleared completed torrents. Retrying to add...');
+                addResult = await addMagnet({ magnet: magnetLink, token: this.apiKey });
+            } else {
+                return {
+                    name: 'TorBox',
+                    title: '🔴 Limit reached, no space cleared',
+                    url: '#',
+                    behaviorHints: { notWebReady: true }
+                };
+            }
+        }
 
         if (addResult.ok) {
           console.log('✅ Successfully added torrent to TorBox queue');
@@ -63,10 +103,11 @@ class TorBoxService {
             behaviorHints: { notWebReady: true }
           };
         } else {
-          console.log('❌ Failed to add torrent to TorBox');
+          console.log('❌ Failed to add torrent to TorBox', addResult.data);
+          const errorTitle = addResult.data?.error === 'ACTIVE_LIMIT' ? '🔴 Active limit reached' : '🔴 Error: Failed to Add';
           return {
             name: 'TorBox',
-            title: '🔴 Error: Failed to Add',
+            title: errorTitle,
             url: '#',
             behaviorHints: { notWebReady: true }
           };

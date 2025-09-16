@@ -217,4 +217,22 @@ async function getStreamUrl({ torrent, token, filename = null }) {
   return { url: null, filename: null };
 }
 
-module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo };
+async function deleteTorrent({ torrentId, token }) {
+    if (!torrentId) return { ok: false };
+    console.log(`🗑️ Deleting torrent ${torrentId} from TorBox...`);
+    try {
+        const res = await axios.delete(`${TORBOX_BASE}/v1/api/torrents/delete/${torrentId}`, {
+            headers: authHeaders(token)
+        });
+        console.log(`✅ TorBox delete response:`, res.data);
+        return { ok: res.data.success, data: res.data };
+    } catch (error) {
+        console.error('❌ TorBox DELETE request failed:', error.message);
+        if (error.response) {
+            return { ok: false, status: error.response.status, json: error.response.data };
+        }
+        return { ok: false, status: 0, json: null };
+    }
+}
+
+module.exports = { isCached, addMagnet, getStreamUrl, extractInfoHash, getTorrentInfo, deleteTorrent };

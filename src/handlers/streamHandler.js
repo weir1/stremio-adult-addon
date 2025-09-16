@@ -3,6 +3,7 @@ const TorBoxService = require('../services/torboxService');
 const FansDBService = require('../services/fansdbService');
 const scraper = require('../scrapers/1337x');
 const parseTorrent = require('parse-torrent');
+const axios = require('axios');
 
 class StreamHandler {
   async handle({ type, id }, userConfig) {
