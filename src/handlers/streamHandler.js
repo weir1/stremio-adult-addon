@@ -91,13 +91,40 @@ class StreamHandler {
         return { streams: [] };
       }
 
-      const streams = [];
+      // Handle 1337x torrents separately
+      if (id.startsWith('x_')) {
+        if (!t.magnetLink) {
+          const details = await scraper.getTorrentDetails(t.link);
+          t.magnetLink = details.magnetLink;
+        }
 
-      if (id.startsWith('x_') && !t.magnetLink) {
-        const details = await scraper.getTorrentDetails(t.link);
-        t.magnetLink = details.magnetLink;
+        if (!t.magnetLink) {
+          console.log('❌ Could not get magnet link for 1337x torrent:', t.name);
+          return { streams: [] };
+        }
+
+        const streams = [];
+        streams.push({
+          name: 'P2P',
+          title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
+          url: t.magnetLink,
+          description: 'For smoother playback, increase cache in Stremio settings.',
+          behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
+        });
+
+        if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+          const torboxService = new TorBoxService(userConfig.torboxApiKey);
+          const torboxStream = await torboxService.processStream(t.magnetLink, t);
+          if (torboxStream) {
+            streams.push(torboxStream);
+          }
+        }
+        console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
+        return { streams };
       }
 
+      // Handle Jackett torrents
+      const streams = [];
       let parsedTorrent;
 
       if (!t.magnetLink && t.torrentFileUrl) {
