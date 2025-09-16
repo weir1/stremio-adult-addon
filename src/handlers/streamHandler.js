@@ -98,30 +98,6 @@ class StreamHandler {
         t.magnetLink = details.magnetLink;
       }
 
-      // For 1337x, we can't get the file list without downloading the torrent metadata,
-      // so we will treat it as a single file stream to prevent crashes.
-      if (id.startsWith('x_')) {
-        streams.push({
-          name: 'P2P',
-          title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
-          url: t.magnetLink,
-          description: 'For smoother playback, increase cache in Stremio settings.',
-          behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
-        });
-
-        if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-          const torboxService = new TorBoxService(userConfig.torboxApiKey);
-          const torboxStream = await torboxService.processStream(t.magnetLink, t);
-          if (torboxStream) {
-            streams.push(torboxStream);
-          }
-        }
-
-        console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
-        console.log('🎬 ===== STREAM SUCCESS =====');
-        return { streams };
-      }
-
       let parsedTorrent;
 
       if (!t.magnetLink && t.torrentFileUrl) {

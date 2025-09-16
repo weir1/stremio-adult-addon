@@ -35,7 +35,7 @@ class Scraper1337x {
         }
     }
 
-    async scrapeCategory(categoryPath) {
+    async scrapeCategory(categoryPath, enrich = true) {
         for (const baseUrl of this.baseUrls) {
             try {
                 const url = `${baseUrl}${categoryPath}`;
@@ -62,8 +62,21 @@ class Scraper1337x {
                 });
 
                 const topTorrents = torrents.slice(0, 25);
-                console.log(`✅ Successfully scraped ${topTorrents.length} torrents from ${baseUrl}`);
-                return topTorrents;
+
+                if (!enrich) {
+                    console.log(`✅ Successfully scraped ${topTorrents.length} torrents from ${baseUrl} (no enrichment)`);
+                    return topTorrents;
+                }
+
+                console.log(`Found ${topTorrents.length} initial torrents. Enriching with details...`);
+                const enrichedTorrents = [];
+                for (const torrent of topTorrents) {
+                    const details = await this.getTorrentDetails(torrent.link);
+                    if (details.magnetLink) enrichedTorrents.push({ ...torrent, ...details });
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                console.log(`✅ Successfully enriched ${enrichedTorrents.length} torrents from ${baseUrl}`);
+                return enrichedTorrents;
             } catch (error) {
                 console.warn(`⚠️ Failed to scrape from ${baseUrl}: ${error.message}. Trying next domain...`);
             }
@@ -74,15 +87,15 @@ class Scraper1337x {
 
     async search(query) {
         const searchPath = `/search/${encodeURIComponent(query)}/1/`;
-        return this.scrapeCategory(searchPath);
+        return this.scrapeCategory(searchPath, false);
     }
 
     async scrapePopular() {
-        return this.scrapeCategory('/popular-xxx');
+        return this.scrapeCategory('/popular-xxx', true);
     }
 
     async scrapeTrending() {
-        return this.scrapeCategory('/trending/d/xxx/');
+        return this.scrapeCategory('/trending/d/xxx/', true);
     }
 }
 
