@@ -91,6 +91,8 @@ class StreamHandler {
         return { streams: [] };
       }
 
+      const streams = [];
+
       if (id.startsWith('x_') && !t.magnetLink) {
         const details = await scraper.getTorrentDetails(t.link);
         t.magnetLink = details.magnetLink;
@@ -98,7 +100,6 @@ class StreamHandler {
 
       // For 1337x, we can't get the file list without downloading the torrent metadata,
       // so we will treat it as a single file stream to prevent crashes.
-      const streams = [];
       if (id.startsWith('x_')) {
         streams.push({
           name: 'P2P',
@@ -146,7 +147,6 @@ class StreamHandler {
         return { streams: [] };
       }
 
-      const streams = [];
       const files = parsedTorrent ? parsedTorrent.files : [];
       const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
       const videoFiles = files.filter(f => videoExtensions.some(ext => f.name.endsWith(ext)));
