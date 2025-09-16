@@ -144,7 +144,7 @@ async function getTorrentInfo({ infoHash, token }) {
 }
 
 // Get a playable URL for a cached torrent by hash
-async function getStreamUrl({ torrent, token }) {
+async function getStreamUrl({ torrent, token, filename = null }) {
   if (!torrent || !torrent.id || !torrent.hash) return { url: null, filename: null };
 
   let files = torrent.files;
@@ -163,13 +163,16 @@ async function getStreamUrl({ torrent, token }) {
       }
   }
 
-  const videoCandidates = files.filter(f => {
-    const n = (f.name || '').toLowerCase();
-    return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
-  });
-
-  console.log(' Torrent object:', torrent);
-  const best = videoCandidates.sort((a, b) => b.size - a.size)[0] || files[0];
+  let best = null;
+  if (filename) {
+    best = files.find(f => f.name === filename);
+  } else {
+    const videoCandidates = files.filter(f => {
+      const n = (f.name || '').toLowerCase();
+      return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.webm');
+    });
+    best = videoCandidates.sort((a, b) => b.size - a.size)[0] || files[0];
+  }
   console.log('Best video file:', best);
 
   if (!best) {

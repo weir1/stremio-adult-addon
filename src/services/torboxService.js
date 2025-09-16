@@ -5,7 +5,7 @@ class TorBoxService {
     this.apiKey = apiKey;
   }
 
-  async processStream(magnetLink, torrentInfo) {
+  async processStream(magnetLink, torrentInfo, filename = null) {
     try {
       const infoHash = extractInfoHash(magnetLink);
       if (!infoHash) {
@@ -14,7 +14,7 @@ class TorBoxService {
       }
 
       console.log(`⚡️ Processing stream for hash: ${infoHash}`);
-      const status = await this.checkTorrentStatus(infoHash);
+      const status = await this.checkTorrentStatus(infoHash, filename);
 
       if (!status.ok) {
         return {
@@ -86,7 +86,7 @@ class TorBoxService {
     }
   }
 
-  async checkTorrentStatus(infoHash) {
+  async checkTorrentStatus(infoHash, filename = null) {
     const h = (infoHash || '').toLowerCase();
     console.log(`🔎 Checking real-time TorBox status for hash: ${h}`);
 
@@ -107,7 +107,7 @@ class TorBoxService {
         }
 
         if (torrent) {
-          const streamResult = await getStreamUrl({ torrent, token: this.apiKey });
+          const streamResult = await getStreamUrl({ torrent, token: this.apiKey, filename });
 
           if (streamResult.url) {
             return {
