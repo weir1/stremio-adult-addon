@@ -91,11 +91,11 @@ class Scraper1337x {
     }
 
     async scrapePopular() {
-        return this.scrapeCategory('/popular-xxx', true);
+        return this.scrapeCategory('/popular-xxx', false);
     }
 
     async scrapeTrending() {
-        return this.scrapeCategory('/trending/d/xxx/', true);
+        return this.scrapeCategory('/trending/d/xxx/', false);
     }
 }
 
