@@ -136,6 +136,13 @@ class ConfigService {
                 <input type="text" id="jackettApiKey" name="jackettApiKey" placeholder="Enter your Jackett API key...">
                 <small>Get from your Jackett instance</small>
             </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="jackettDownloadFallback" name="jackettDownloadFallback">
+                    <label for="jackettDownloadFallback">Enable .torrent file download fallback (slower, for indexers with no magnet links)</label>
+                </div>
+            </div>
         </div>
 
         <div class="section torbox">
@@ -251,6 +258,7 @@ class ConfigService {
             const flaresolverrUrl = document.getElementById('flaresolverrUrl').value.trim();
             const jackettUrl = document.getElementById('jackettUrl').value.trim();
             const jackettApiKey = document.getElementById('jackettApiKey').value.trim();
+            const jackettDownloadFallback = document.getElementById('jackettDownloadFallback').checked;
             
             let baseUrl = 'https://stremio.moindigital.in';
             let manifestUrl = baseUrl + '/manifest.json';
@@ -267,6 +275,7 @@ class ConfigService {
             if (flaresolverrUrl) config.flaresolverrUrl = flaresolverrUrl;
             if (jackettUrl) config.jackettUrl = jackettUrl;
             if (jackettApiKey) config.jackettApiKey = jackettApiKey;
+            if (jackettDownloadFallback) config.jackettDownloadFallback = jackettDownloadFallback;
             
             // Create encoded URL if any config is set
             if (Object.keys(config).length > 0) {
@@ -325,6 +334,7 @@ class ConfigService {
         document.getElementById('flaresolverrUrl').addEventListener('input', updateManifestUrl);
         document.getElementById('jackettUrl').addEventListener('input', updateManifestUrl);
         document.getElementById('jackettApiKey').addEventListener('input', updateManifestUrl);
+        document.getElementById('jackettDownloadFallback').addEventListener('change', updateManifestUrl);
         
         updateManifestUrl();
     </script>
