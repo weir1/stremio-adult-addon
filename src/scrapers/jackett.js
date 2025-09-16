@@ -79,7 +79,16 @@ class ScraperJackett {
                 }
 
                 let magnetLink = null;
-                if (link) {
+                const magnetAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl' || attr.$.name === 'magnet') : null;
+                if (magnetAttr) {
+                    magnetLink = magnetAttr.$.value;
+                }
+
+                if (!magnetLink && link && link.startsWith('magnet:')) {
+                    magnetLink = link;
+                }
+
+                if (!magnetLink && link) {
                     try {
                         const response = await axios.get(link, { responseType: 'arraybuffer', timeout: 15000 });
                         const torrentFile = Buffer.from(response.data);
