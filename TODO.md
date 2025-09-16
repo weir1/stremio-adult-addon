@@ -4,36 +4,40 @@ This document tracks the ongoing development tasks and bug fixes for the Stremio
 
 ## High Priority
 
+- [ ] **Restore Missing P2P Streams (Regression):**
+  - [ ] P2P links are missing for torrents from all scrapers (1337x, Jackett), not just search.
+  - [ ] This is a critical regression that needs to be fixed immediately.
+  - [ ] Thoroughly investigate `streamHandler.js` to find and fix the logic error causing P2P streams to be omitted.
+
 - [ ] **Fix Slow Search Performance:**
-  - [ ] Search results are still loading slowly.
-  - [ ] Investigate and refactor the `catalogHandler` to defer all non-essential operations (like poster generation).
-  - [ ] Posters should be loaded in the `metaHandler` on-demand when a user clicks an item, not during the initial search.
+  - [ ] The `1337x` scraper is calling `getTorrentDetails` for every result, causing major slowdowns.
+  - [ ] Refactor `1337x.js` to stop making extra network requests during the initial search. Defer this work to the `metaHandler` or `streamHandler` (lazy loading).
 
 - [ ] **Fix Multi-File Torrent Handling:**
-  - [ ] Torrents with multiple video files (e.g., 73 clips) are not being listed individually.
-  - [ ] The `streamHandler` needs to be fixed to correctly parse all torrent types (especially those from Jackett where the magnet is generated on-the-fly) and create a separate stream for each video file.
-
-- [ ] **Fix FansDB Integration:**
-  - [ ] The FansDB API request is failing with a `422 Unprocessable Entity` and an "unknown field" error.
-  - [ ] Analyze the GraphQL query in `fansdbService.js` and compare it against the current FansDB API schema to find and fix the incorrect field.
+  - [ ] Torrents with many video files are still not being listed individually.
+  - [ ] Re-verify the `streamHandler` logic to ensure it correctly parses all torrents (especially on-demand magnet links) and creates a stream for each video file.
 
 ## Medium Priority
 
 - [ ] **Display Video Count in Metadata:**
   - [ ] Show the number of videos in a torrent (e.g., "Contains 73 video files").
-  - [ ] This should be implemented in the `metaHandler` to avoid slowing down the catalog view. The handler will need to parse the torrent metadata to get the file count.
-
-- [ ] **Improve TorBox Active Limit Handling:**
-  - [ ] The current implementation to clear completed torrents when the limit is reached is not working reliably.
-  - [ ] Ensure the error from the API is correctly interpreted and that the clearing process is robust.
+  - [ ] This should be implemented in the `metaHandler`.
 
 ## Low Priority
 
 - [ ] **Investigate P2P Buffering:**
-  - [ ] Users report significant buffering with P2P streams.
-  - [ ] Research `stremio-addon-sdk` `behaviorHints` to see if the addon can suggest a larger cache or pre-fetch size to the client.
-  - [ ] Add a note to the user that this is primarily a client-side setting.
+  - [ ] Research `stremio-addon-sdk` `behaviorHints` for any flags that can influence client-side caching.
+  - [ ] Add a description to P2P streams informing users that cache size can be increased in Stremio settings.
+
+---
+
+## Backlog
+
+- [ ] **Fix FansDB Integration:**
+  - [ ] The API request is failing with an "unknown field" error.
+  - [ ] The official API documentation is available at: https://docs.fansdb.cc/
+  - [ ] When working on this, use "Lena the Plug" as a test case.
 
 - [ ] **Versioning and Commits:**
   - [ ] After each major fix, bump the version in `package.json` and `src/config/manifest.js`.
-  - [ ] Create clear and meaningful commit messages for each set of changes.
+  - [ ] Create clear and meaningful commit messages.

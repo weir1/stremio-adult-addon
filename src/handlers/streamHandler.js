@@ -1,7 +1,8 @@
 const { getCachedTorrents } = require('../utils/torrentCache');
 const TorBoxService = require('../services/torboxService');
 const FansDBService = require('../services/fansdbService');
-const scraper = require('../scrapers/1337x');
+const Scraper1337x = require('../scrapers/1337x');
+const scraper = new Scraper1337x();
 const parseTorrent = require('parse-torrent');
 const axios = require('axios');
 
@@ -59,7 +60,7 @@ class StreamHandler {
         } else {
           const p2pStream = {
             name: 'P2P',
-            title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
+            title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
             url: t.magnetLink,
             behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}` }
           };
@@ -90,6 +91,11 @@ class StreamHandler {
         return { streams: [] };
       }
 
+      if (id.startsWith('x_') && !t.magnetLink) {
+        const details = await scraper.getTorrentDetails(t.link);
+        t.magnetLink = details.magnetLink;
+      }
+
       let parsedTorrent;
 
       if (!t.magnetLink && t.torrentFileUrl) {
@@ -116,58 +122,45 @@ class StreamHandler {
       }
 
       const streams = [];
-      const files = parsedTorrent ? parsedTorrent.files : null;
+      const files = parsedTorrent ? parsedTorrent.files : [];
+      const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
+      const videoFiles = files.filter(f => videoExtensions.some(ext => f.name.endsWith(ext)));
 
-      if (files && files.length > 1) {
-        for (const file of files) {
-          const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-          if (videoExtensions.some(ext => file.name.endsWith(ext))) {
-            const p2pStream = {
-              name: 'P2P',
-              title: `⚡️ P2P - ${file.name}`,
-              url: magnetLink,
-              description: 'For smoother playback, increase cache in Stremio settings.',
-              behaviorHints: { notWebReady: true, bingeGroup: 'adult-content', filename: file.name }
-            };
-            streams.push(p2pStream);
+      if (videoFiles.length > 0) {
+        // Multiple video files found, create a stream for each
+        for (const file of videoFiles) {
+          streams.push({
+            name: 'P2P',
+            title: `⚡️ P2P - ${file.name}`,
+            url: magnetLink,
+            description: 'For smoother playback, increase cache in Stremio settings.',
+            behaviorHints: { notWebReady: true, bingeGroup: 'adult-content', filename: file.name }
+          });
 
-            if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-              console.log('🟡 TorBox integration enabled, processing...');
-              const torboxService = new TorBoxService(userConfig.torboxApiKey);
-              const torboxStream = await torboxService.processStream(magnetLink, t, file.name);
-              
-              console.log('🔍 TorBox stream result:', torboxStream);
-              if (torboxStream) {
-                streams.push(torboxStream);
-                console.log('✅ TorBox stream added');
-              }
-            } else {
-              console.log('🔘 TorBox disabled or no API key provided');
+          if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+            const torboxService = new TorBoxService(userConfig.torboxApiKey);
+            const torboxStream = await torboxService.processStream(magnetLink, t, file.name);
+            if (torboxStream) {
+              streams.push(torboxStream);
             }
           }
         }
       } else {
-        const p2pStream = {
+        // No video files found in torrent, or only one file, treat as a single stream
+        streams.push({
           name: 'P2P',
-          title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
+          title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
           url: magnetLink,
           description: 'For smoother playback, increase cache in Stremio settings.',
           behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
-        };
-        streams.push(p2pStream);
+        });
 
         if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-          console.log('🟡 TorBox integration enabled, processing...');
           const torboxService = new TorBoxService(userConfig.torboxApiKey);
           const torboxStream = await torboxService.processStream(magnetLink, t);
-          
-          console.log('🔍 TorBox stream result:', torboxStream);
           if (torboxStream) {
             streams.push(torboxStream);
-            console.log('✅ TorBox stream added');
           }
-        } else {
-          console.log('🔘 TorBox disabled or no API key provided');
         }
       }
 

@@ -8,28 +8,27 @@ class FansDBService {
 
   async getTopPerformers(page = 1, limit = 20) {
     const query = `
-      query GetPerformers($input: PerformerQueryInput!) {
-        queryPerformers(input: $input) {
+      query GetPerformers {
+        queryPerformers {
           count
           performers {
             id
             name
-            posters {
+            images {
               url
             }
           }
         }
       }
     `;
-    const variables = { input: { page, limit, sort: 'VIEWS_MONTHLY' } };
-    const { ok, data, error } = await graphQlQuery(query, variables, this.apiKey);
+    const { ok, data, error } = await graphQlQuery(query, {}, this.apiKey);
 
     if (ok && data?.queryPerformers?.performers) {
       return data.queryPerformers.performers.map(p => ({
         id: `fansdb:${p.id}`,
         type: 'channel',
         name: p.name,
-        poster: p.posters[0]?.url,
+        poster: p.images[0]?.url,
         posterShape: 'square',
       }));
     } else {
@@ -44,14 +43,14 @@ class FansDBService {
         findPerformer(id: $id) {
           id
           name
-          posters {
+          images {
             url
           }
           scenes {
             id
             title
             release_date
-            posters {
+            images {
               url
             }
           }
@@ -67,13 +66,13 @@ class FansDBService {
         id: `fansdb:${p.id}`,
         type: 'channel',
         name: p.name,
-        poster: p.posters[0]?.url,
+        poster: p.images[0]?.url,
         posterShape: 'square',
         videos: p.scenes.map(s => ({
           id: `fansdb-scene:${p.id}:${s.id}`,
           title: s.title,
           released: s.release_date,
-          thumbnail: s.posters[0]?.url,
+          thumbnail: s.images[0]?.url,
         }))
       };
     } else {

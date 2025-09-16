@@ -3,6 +3,8 @@ const { generatePoster } = require('../utils/posterGenerator');
 const FansDBService = require('../services/fansdbService');
 const parseTorrent = require('parse-torrent');
 const axios = require('axios');
+const Scraper1337x = require('../scrapers/1337x');
+const scraper = new Scraper1337x();
 
 class MetaHandler {
   async handle({ type, id }, userConfig) {
@@ -30,6 +32,12 @@ class MetaHandler {
       
       if (!t) {
         return { meta: { id, type: 'movie', name: 'Unknown item', genres: ['Adult'] } };
+      }
+
+      if (id.startsWith('x_') && !t.magnetLink) {
+        const details = await scraper.getTorrentDetails(t.link);
+        t.magnetLink = details.magnetLink;
+        t.poster = details.poster;
       }
 
       let description = `💾 ${t.size} • 🌱 ${t.seeders} • 📥 ${t.leechers}`;

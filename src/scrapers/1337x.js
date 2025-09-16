@@ -62,21 +62,19 @@ class Scraper1337x {
                 });
 
                 const topTorrents = torrents.slice(0, 25);
-                console.log(`Found ${topTorrents.length} initial torrents. Enriching with details...`);
-                const enrichedTorrents = [];
-                for (const torrent of topTorrents) {
-                    const details = await this.getTorrentDetails(torrent.link);
-                    if (details.magnetLink) enrichedTorrents.push({ ...torrent, ...details });
-                    await new Promise(resolve => setTimeout(resolve, 250));
-                }
-                console.log(`✅ Successfully enriched ${enrichedTorrents.length} torrents from ${baseUrl}`);
-                return enrichedTorrents;
+                console.log(`✅ Successfully scraped ${topTorrents.length} torrents from ${baseUrl}`);
+                return topTorrents;
             } catch (error) {
                 console.warn(`⚠️ Failed to scrape from ${baseUrl}: ${error.message}. Trying next domain...`);
             }
         }
         console.error(`❌ Scraping failed for all domains for category: ${categoryPath}`);
         return [];
+    }
+
+    async search(query) {
+        const searchPath = `/search/${encodeURIComponent(query)}/1/`;
+        return this.scrapeCategory(searchPath);
     }
 
     async scrapePopular() {
