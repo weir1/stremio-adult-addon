@@ -50,11 +50,11 @@ class StreamHandler {
               };
               streams.push(p2pStream);
 
-              if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+              /* if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
                 const torboxService = new TorBoxService(userConfig.torboxApiKey);
                 const torboxStream = await torboxService.processStream(t.magnetLink, t, file.name);
                 if (torboxStream) streams.push(torboxStream);
-              }
+              } */
             }
           }
         } else {
@@ -66,11 +66,11 @@ class StreamHandler {
           };
           streams.push(p2pStream);
 
-          if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+          /* if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
             const torboxService = new TorBoxService(userConfig.torboxApiKey);
             const torboxStream = await torboxService.processStream(t.magnetLink, t);
             if (torboxStream) streams.push(torboxStream);
-          }
+          } */
         }
       }
 
@@ -146,10 +146,10 @@ class StreamHandler {
             behaviorHints: { notWebReady: true, bingeGroup: `p2p-${parsedTorrent.infoHash}`, filename: file.name }
           });
 
-          if (torboxService) {
+          /* if (torboxService) {
             const torboxStream = await torboxService.processStream(magnetLink, t, file.name);
             if (torboxStream) streams.push(torboxStream);
-          }
+          } */
         }
       } else {
         // Single file torrent or no video files detected, create a single stream
@@ -161,10 +161,10 @@ class StreamHandler {
           behaviorHints: { notWebReady: true, bingeGroup: `p2p-${parsedTorrent.infoHash}` }
         });
 
-        if (torboxService) {
+        /* if (torboxService) {
           const torboxStream = await torboxService.processStream(magnetLink, t);
           if (torboxStream) streams.push(torboxStream);
-        }
+        } */
       }
 
       console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
