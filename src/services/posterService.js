@@ -10,38 +10,17 @@ class PosterService {
   extractSearchTerms(torrentName) {
     let cleaned = torrentName
       .replace(/\.(mp4|mkv|avi|wmv|mov)$/i, '')
-      .replace(/\b(XXX|PORN|ADULT|HD|720p|1080p|4K|WEB-DL|BluRay|DVDRip|XviD|x264|x265|REMASTERED)\b/gi, '')
+      .replace(/\b(HD|720p|1080p|4K|WEB-DL|BluRay|DVDRip|XviD|x264|x265|REMASTERED)\b/gi, '')
       .replace(/\b(2160p|1440p|480p)\b/gi, '')
-      .replace(/[\{\[\(].*?[\)\]\}]/g, '') // Remove content in brackets
-      .replace(/\d{2,4}[-._]\d{2,4}[-._]\d{2,4}/, '') // Remove dates like 25-09-14
       .replace(/[-_.]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    const studioPatterns = [
-      /^(Brazzers|BangBros|RealityKings|TeamSkeet|Naughty\s?America|Digital\s?Playground)/i,
-      /^(MyPervyFamily|OnlyFans|MomSwap|FamilyStrokes|SisLovesMe|AnalMom|MomXXX)/i,
-      /^(Tushy|Vixen|Blacked|BlackedRaw|Deeper|Milfy|FamilyTherapyXXX|AskYourMother)/i,
-      /^(MyFriendsHotMom|FreeUseFantasy|AssMasterpiece|OopsFamily|CheatingMommy|PrincessCum|Shoplyfter)/i
-    ];
-
-    let studio = null;
-    let title = cleaned;
-
-    for (const pattern of studioPatterns) {
-      const match = cleaned.match(pattern);
-      if (match) {
-        studio = match[0].replace(/\s/g, ''); // Use consistent studio name
-        title = cleaned.replace(pattern, '').trim();
-        break;
-      }
-    }
-
     return {
       original: torrentName,
-      cleaned: title,
-      studio: studio,
-      searchQuery: studio ? `${studio} ${title}` : title
+      cleaned: cleaned,
+      studio: null,
+      searchQuery: cleaned
     };
   }
 

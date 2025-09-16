@@ -22,7 +22,8 @@ class MetaHandler {
     try {
       const trending = await getCachedTorrents('trending');
       const popular = await getCachedTorrents('popular');
-      const all = [...trending, ...popular];
+      const search = await getCachedTorrents('search');
+      const all = [...trending, ...popular, ...search];
       const t = all.find(x => x.id === id);
       
       if (!t) {

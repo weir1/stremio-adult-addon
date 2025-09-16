@@ -65,7 +65,7 @@ class StreamHandler {
 
       let magnetLink = t.magnetLink;
 
-      if (id.startsWith('jackett:') && !magnetLink) {
+      if ((id.startsWith('jackett:') || id.startsWith('js_')) && !magnetLink) {
         console.log(`⚙️ Scraping magnet link for jackett torrent: ${t.link}`);
         try {
             const axios = require('axios');
