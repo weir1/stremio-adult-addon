@@ -100,10 +100,14 @@ class TorBoxService {
         if (!torrent) {
           console.log('🟡 Torrent is cached but not in mylist, adding it now...');
           await addMagnet({ magnet: `magnet:?xt=urn:btih:${h}`, token: this.apiKey });
-          // wait 2 seconds for the torrent to appear in mylist
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          // try to get the torrent info again after adding it
-          torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
+          
+          let retries = 3;
+          while (!torrent && retries > 0) {
+              console.log(`Retrying to get torrent info... (${4 - retries})`);
+              await new Promise(resolve => setTimeout(resolve, 2000)); // 2-second delay
+              torrent = await getTorrentInfo({ infoHash: h, token: this.apiKey });
+              retries--;
+          }
         }
 
         if (torrent) {
