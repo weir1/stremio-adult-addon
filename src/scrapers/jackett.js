@@ -12,6 +12,13 @@ class ScraperJackett {
             return [];
         }
 
+        const generateTorrentId = (name, link) => {
+            const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+            const cleanLink = link.replace(/[^a-zA-Z0-9]/g, '');
+            const combined = cleanName + '_' + cleanLink;
+            return Buffer.from(combined).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+        }
+
         const baseUrl = this.userConfig.jackettUrl.replace(/\/$/, "");
         const url = `${baseUrl}/api/v2.0/indexers/all/results/torznab?apikey=${this.userConfig.jackettApiKey}&t=search&q=${encodeURIComponent(query)}`;
 
@@ -32,11 +39,22 @@ class ScraperJackett {
                 const torznabAttrs = item['torznab:attr'];
                 const seeders = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'seeders')?.$.value : '0';
                 const size = item.enclosure && item.enclosure[0] && item.enclosure[0].$.length ? parseInt(item.enclosure[0].$.length) : 0;
+                const name = item.title[0];
+                const link = item.link[0];
+
+                let id;
+                if (item.guid && item.guid[0] && typeof item.guid[0] === 'string' && item.guid[0].trim() !== '') {
+                    id = `jackett:${item.guid[0]}`;
+                } else if (item.guid && item.guid[0] && item.guid[0]._ && typeof item.guid[0]._ === 'string' && item.guid[0]._.trim() !== '') {
+                    id = `jackett:${item.guid[0]._}`;
+                } else {
+                    id = `jackett:${generateTorrentId(name, link)}`;
+                }
 
                 return {
-                    id: `jackett:${item.guid[0]._}`,
-                    name: item.title[0],
-                    link: item.link[0],
+                    id: id,
+                    name: name,
+                    link: link,
                     seeders: parseInt(seeders),
                     leechers: 0, // Torznab doesn't always provide leechers
                     size: size,
