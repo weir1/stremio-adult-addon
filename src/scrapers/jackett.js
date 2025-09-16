@@ -8,30 +8,7 @@ class ScraperJackett {
         this.userConfig = userConfig;
     }
 
-    async enrichTorrentsWithTorbox(torrents) {
-        if (!this.userConfig.torboxApiKey) {
-            return torrents;
-        }
-
-        const enrichedTorrents = await Promise.all(torrents.map(async torrent => {
-            if (!torrent.magnetLink) {
-                return torrent;
-            }
-
-            const infoHash = extractInfoHash(torrent.magnetLink);
-            if (!infoHash) {
-                return torrent;
-            }
-
-            const cacheResult = await isCached({ infoHash, token: this.userConfig.torboxApiKey });
-            return {
-                ...torrent,
-                cached: cacheResult.cached,
-            };
-        }));
-
-        return enrichedTorrents;
-    }
+    
 
     async search(query) {
         if (!this.userConfig.jackettUrl || !this.userConfig.jackettApiKey) {
@@ -62,62 +39,48 @@ class ScraperJackett {
                 return [];
             }
 
-            const processChunk = async (chunk) => {
-                return Promise.all(chunk.map(async item => {
-                    const torznabAttrs = item['torznab:attr'];
-                    const seeders = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'seeders')?.$.value : '0';
-                    const size = item.enclosure && item.enclosure[0] && item.enclosure[0].$.length ? parseInt(item.enclosure[0].$.length) : 0;
-                    const name = item.title[0];
-                    const link = item.link[0];
+            const torrents = (await Promise.all(items.map(async item => {
+                const torznabAttrs = item['torznab:attr'];
+                const seeders = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'seeders')?.$.value : '0';
+                const size = item.enclosure && item.enclosure[0] && item.enclosure[0].$.length ? parseInt(item.enclosure[0].$.length) : 0;
+                const name = item.title[0];
+                const link = item.link[0];
 
-                    let id;
-                    if (item.guid && item.guid[0] && typeof item.guid[0] === 'string' && item.guid[0].trim() !== '') {
-                        id = `js_${item.guid[0]}`;
-                    } else if (item.guid && item.guid[0] && item.guid[0]._ && typeof item.guid[0]._ === 'string' && item.guid[0]._.trim() !== '') {
-                        id = `js_${item.guid[0]._}`;
-                    } else {
-                        id = `js_${generateTorrentId(name, link)}`;
-                    }
+                let id;
+                if (item.guid && item.guid[0] && typeof item.guid[0] === 'string' && item.guid[0].trim() !== '') {
+                    id = `js_${item.guid[0]}`;
+                } else if (item.guid && item.guid[0] && item.guid[0]._ && typeof item.guid[0]._ === 'string' && item.guid[0]._.trim() !== '') {
+                    id = `js_${item.guid[0]._}`;
+                } else {
+                    id = `js_${generateTorrentId(name, link)}`;
+                }
 
-                    let magnetLink = null;
-                    let torrentFileUrl = null;
-                    const magnetAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl' || attr.$.name === 'magnet') : null;
-                    if (magnetAttr) {
-                        magnetLink = magnetAttr.$.value;
-                    } else if (link && link.startsWith('magnet:')) {
-                        magnetLink = link;
-                    } else if (link) {
-                        torrentFileUrl = link;
-                    }
+                let magnetLink = null;
+                let torrentFileUrl = null;
+                const magnetAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl' || attr.$.name === 'magnet') : null;
+                if (magnetAttr) {
+                    magnetLink = magnetAttr.$.value;
+                } else if (link && link.startsWith('magnet:')) {
+                    magnetLink = link;
+                } else if (link) {
+                    torrentFileUrl = link;
+                }
 
-                    if (!magnetLink && !torrentFileUrl) {
-                        return null;
-                    }
+                if (!magnetLink && !torrentFileUrl) {
+                    return null;
+                }
 
-                    return {
-                        id: id,
-                        name: name,
-                        link: link,
-                        seeders: parseInt(seeders),
-                        leechers: 0, // Torznab doesn't always provide leechers
-                        size: size,
-                        magnetLink: magnetLink,
-                        torrentFileUrl: torrentFileUrl
-                    };
-                }));
-            };
-
-            const chunkSize = 5;
-            let allTorrents = [];
-            for (let i = 0; i < items.length; i += chunkSize) {
-                const chunk = items.slice(i, i + chunkSize);
-                const chunkResult = await processChunk(chunk);
-                allTorrents.push(...chunkResult);
-            }
-
-            let torrents = allTorrents.filter(t => t !== null);
-
-            torrents = await this.enrichTorrentsWithTorbox(torrents);
+                return {
+                    id: id,
+                    name: name,
+                    link: link,
+                    seeders: parseInt(seeders),
+                    leechers: 0, // Torznab doesn't always provide leechers
+                    size: size,
+                    magnetLink: magnetLink,
+                    torrentFileUrl: torrentFileUrl
+                };
+            }))).filter(t => t !== null);
 
             const topTorrents = torrents.slice(0, 25);
             console.log(`Found ${topTorrents.length} initial torrents.`);

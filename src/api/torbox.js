@@ -91,34 +91,21 @@ async function isCached({ magnet, infoHash, token }) {
   return { cached, data: ok ? json : null, hash: hash || null };
 }
 
-// FIXED: Enqueue magnet on TorBox using form data
 async function addMagnet({ magnet, token }) {
   if (!magnet) return { ok: false, data: null };
   
-  console.log('🟡 Adding magnet to TorBox with form data...');
+  console.log('🟡 Adding magnet to TorBox...');
   
-  // Try form data format first
-  const { ok, status, json } = await postForm(
+  const response = await postForm(
     `${TORBOX_BASE}/v1/api/torrents/createtorrent`,
     { magnet }, 
     authHeaders(token)
   );
   
-  console.log('🟡 TorBox add response:', { ok, status, json });
+  console.log('🟡 TorBox add response:', { ok: response.ok, status: response.status, json: response.json });
   
-  if (!ok && status === 405) {
-    // Try alternative endpoint if method not allowed
-    console.log('🟡 Trying alternative TorBox endpoint...');
-    const altResponse = await postForm(
-      `${TORBOX_BASE}/v1/api/torrents/requestdl`,
-      { magnet },
-      authHeaders(token)
-    );
-    console.log('🟡 Alternative TorBox response:', altResponse);
-    return { ok: altResponse.ok, data: altResponse.ok ? altResponse.json : null };
-  }
-  
-  return { ok, data: ok ? json : null };
+  // Pass the full response object, whether it's a success or failure
+  return { ok: response.ok, data: response.json };
 }
 
 async function getTorrentInfo({ infoHash, token }) {

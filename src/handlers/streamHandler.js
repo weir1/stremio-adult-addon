@@ -33,18 +33,43 @@ class StreamHandler {
 
       const streams = [];
       for (const t of torrents) {
-        const p2pStream = {
-          name: 'P2P',
-          title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
-          url: t.magnetLink,
-          behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}` }
-        };
-        streams.push(p2pStream);
+        if (!t.magnetLink) continue;
+        const parsed = parseTorrent(t.magnetLink);
+        const files = parsed.files;
 
-        if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
-          const torboxService = new TorBoxService(userConfig.torboxApiKey);
-          const torboxStream = await torboxService.processStream(t.magnetLink, t);
-          if (torboxStream) streams.push(torboxStream);
+        if (files && files.length > 1) {
+          for (const file of files) {
+            const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
+            if (videoExtensions.some(ext => file.name.endsWith(ext))) {
+              const p2pStream = {
+                name: 'P2P',
+                title: `⚡️ P2P - ${file.name}`,
+                url: t.magnetLink,
+                behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}`, filename: file.name }
+              };
+              streams.push(p2pStream);
+
+              if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+                const torboxService = new TorBoxService(userConfig.torboxApiKey);
+                const torboxStream = await torboxService.processStream(t.magnetLink, t, file.name);
+                if (torboxStream) streams.push(torboxStream);
+              }
+            }
+          }
+        } else {
+          const p2pStream = {
+            name: 'P2P',
+            title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
+            url: t.magnetLink,
+            behaviorHints: { notWebReady: true, bingeGroup: `fansdb-${sceneId}` }
+          };
+          streams.push(p2pStream);
+
+          if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
+            const torboxService = new TorBoxService(userConfig.torboxApiKey);
+            const torboxStream = await torboxService.processStream(t.magnetLink, t);
+            if (torboxStream) streams.push(torboxStream);
+          }
         }
       }
 

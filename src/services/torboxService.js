@@ -57,7 +57,8 @@ class TorBoxService {
           url: status.cachedUrl,
           behaviorHints: { 
             notWebReady: false,
-            bingeGroup: 'adult-content-torbox'
+            bingeGroup: 'adult-content-torbox',
+            filename: filename
           }
         };
       }
