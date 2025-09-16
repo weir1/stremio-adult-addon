@@ -14,7 +14,7 @@ class FansDBService {
           performers {
             id
             name
-            images {
+            posters {
               url
             }
           }
@@ -29,7 +29,7 @@ class FansDBService {
         id: `fansdb:${p.id}`,
         type: 'channel',
         name: p.name,
-        poster: p.images[0]?.url,
+        poster: p.posters[0]?.url,
         posterShape: 'square',
       }));
     } else {
@@ -44,14 +44,14 @@ class FansDBService {
         findPerformer(id: $id) {
           id
           name
-          images {
+          posters {
             url
           }
           scenes {
             id
             title
             release_date
-            images {
+            posters {
               url
             }
           }
@@ -67,13 +67,13 @@ class FansDBService {
         id: `fansdb:${p.id}`,
         type: 'channel',
         name: p.name,
-        poster: p.images[0]?.url,
+        poster: p.posters[0]?.url,
         posterShape: 'square',
         videos: p.scenes.map(s => ({
           id: `fansdb-scene:${p.id}:${s.id}`,
           title: s.title,
           released: s.release_date,
-          thumbnail: s.images[0]?.url,
+          thumbnail: s.posters[0]?.url,
         }))
       };
     } else {

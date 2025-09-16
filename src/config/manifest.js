@@ -1,6 +1,6 @@
 const getManifest = (idPrefixes = []) => ({
   id: 'org.stremio.adult.addon',
-  version: '1.5.6', // Bump version to force manifest refresh
+  version: '1.5.8', // Bump version to force manifest refresh
   name: 'Adult Content Addon',
   description: 'Stream adult content from 1337x and FansDB. Configure with your API keys for enhanced streaming.',
   resources: [

@@ -90,18 +90,22 @@ class StreamHandler {
         return { streams: [] };
       }
 
+      let parsedTorrent;
+
       if (!t.magnetLink && t.torrentFileUrl) {
         console.log(`▶️ No magnet link for ${t.name}, downloading from ${t.torrentFileUrl}`);
         try {
             const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 20000 });
             const torrentFile = Buffer.from(response.data);
-            const parsed = parseTorrent(torrentFile);
-            t.magnetLink = parseTorrent.toMagnetURI(parsed);
+            parsedTorrent = parseTorrent(torrentFile);
+            t.magnetLink = parseTorrent.toMagnetURI(parsedTorrent);
             console.log(`✅ Magnet link generated for ${t.name}`);
         } catch (error) {
             console.error(`❌ Failed to download or parse .torrent file on-demand: ${error.message}`);
             return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
         }
+      } else if (t.magnetLink) {
+        parsedTorrent = parseTorrent(t.magnetLink);
       }
 
       const magnetLink = t.magnetLink;
@@ -112,8 +116,7 @@ class StreamHandler {
       }
 
       const streams = [];
-      const parsed = parseTorrent(magnetLink);
-      const files = parsed.files;
+      const files = parsedTorrent ? parsedTorrent.files : null;
 
       if (files && files.length > 1) {
         for (const file of files) {
@@ -123,6 +126,7 @@ class StreamHandler {
               name: 'P2P',
               title: `⚡️ P2P - ${file.name}`,
               url: magnetLink,
+              description: 'For smoother playback, increase cache in Stremio settings.',
               behaviorHints: { notWebReady: true, bingeGroup: 'adult-content', filename: file.name }
             };
             streams.push(p2pStream);
@@ -147,6 +151,7 @@ class StreamHandler {
           name: 'P2P',
           title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
           url: magnetLink,
+          description: 'For smoother playback, increase cache in Stremio settings.',
           behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
         };
         streams.push(p2pStream);

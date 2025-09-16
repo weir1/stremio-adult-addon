@@ -1,6 +1,6 @@
 {
   "name": "stremio-adult-addon",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "description": "Stremio addon for adult content with TorBox integration",
   "main": "src/index.js",
   "scripts": {
