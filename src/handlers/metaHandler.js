@@ -56,9 +56,7 @@ class MetaHandler {
         releaseInfo: `${t.seeders} seeders`,
       };
 
-      if (posterData.rating) {
-        meta.imdbRating = posterData.rating.toFixed(1);
-      }
+      
 
       return { meta };
     } catch (err) {

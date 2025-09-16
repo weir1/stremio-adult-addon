@@ -67,7 +67,7 @@ class CatalogHandler {
         id: t.id,
         type: 'movie',
         name: t.name.length > 80 ? t.name.slice(0,80) + '...' : t.name,
-        poster: isSearch ? 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Loading...' : await generatePoster(t.name, t, userConfig),
+        poster: isSearch ? 'https://via.placeholder.com/300x450/FF6B6B/FFFFFF?text=Loading...' : (await generatePoster(t.name, t, userConfig)).poster,
         description: `💾 Size: ${t.size}\n🌱 Seeders: ${t.seeders}\n📥 Leechers: ${t.leechers}${t.uploader ? `\n👤 Uploader: ${t.uploader}` : ''}`,
         genres: ['Adult'],
         releaseInfo: `${t.seeders} seeders`
