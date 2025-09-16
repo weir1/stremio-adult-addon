@@ -1,4 +1,4 @@
-const { getCachedTorrents, initialCachePromise } = require('../utils/torrentCache');
+const { getCachedTorrents, setCachedTorrents, initialCachePromise } = require('../utils/torrentCache');
 const { generatePoster } = require('../utils/posterGenerator');
 const FansDBService = require('../services/fansdbService');
 
@@ -31,6 +31,9 @@ class CatalogHandler {
             const Scraper1337x = require('../scrapers/1337x');
             const scraper = new Scraper1337x(userConfig);
             torrents = await scraper.search(extra.search);
+          }
+          if (torrents.length > 0) {
+            setCachedTorrents('search', torrents);
           }
         }
       } else {

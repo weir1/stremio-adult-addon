@@ -52,13 +52,34 @@ class StreamHandler {
     if (type !== 'movie') return { streams: [] };
     
     try {
-      const trending = await getCachedTorrents('trending');
-      const popular = await getCachedTorrents('popular');
-      const all = [...trending, ...popular];
+      const trending = getCachedTorrents('trending');
+      const popular = getCachedTorrents('popular');
+      const search = getCachedTorrents('search');
+      const all = [...trending, ...popular, ...search];
       const t = all.find(x => x.id === id);
       
-      if (!t || !t.magnetLink) {
-        console.log('❌ Could not find torrent or magnet link in cache for ID:', id);
+      if (!t) {
+        console.log('❌ Could not find torrent in cache for ID:', id);
+        return { streams: [] };
+      }
+
+      let magnetLink = t.magnetLink;
+
+      if (id.startsWith('jackett:') && !magnetLink) {
+        console.log(`⚙️ Scraping magnet link for jackett torrent: ${t.link}`);
+        try {
+            const axios = require('axios');
+            const cheerio = require('cheerio');
+            const response = await axios.get(t.link, { timeout: 15000 });
+            const $ = cheerio.load(response.data);
+            magnetLink = $('a[href^="magnet:"]').attr('href');
+        } catch (error) {
+            console.error(`  -> Error scraping magnet link for ${t.link}: ${error.message}`);
+        }
+      }
+
+      if (!magnetLink) {
+        console.log('❌ Could not find magnet link for torrent:', t.name);
         return { streams: [] };
       }
 
@@ -67,7 +88,7 @@ class StreamHandler {
       const p2pStream = {
         name: 'P2P',
         title: `⚡️ P2P - ${t.size} (${t.seeders}S)`,
-        url: t.magnetLink,
+        url: magnetLink,
         behaviorHints: { notWebReady: true, bingeGroup: 'adult-content' }
       };
       streams.push(p2pStream);
@@ -75,7 +96,7 @@ class StreamHandler {
       if (userConfig?.enableTorBox && userConfig?.torboxApiKey) {
         console.log('🟡 TorBox integration enabled, processing...');
         const torboxService = new TorBoxService(userConfig.torboxApiKey);
-        const torboxStream = await torboxService.processStream(t.magnetLink, t);
+        const torboxStream = await torboxService.processStream(magnetLink, t);
         
         console.log('🔍 TorBox stream result:', torboxStream);
         if (torboxStream) {

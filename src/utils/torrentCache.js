@@ -1,8 +1,8 @@
 const Scraper1337x = require('../scrapers/1337x');
 
-
 let trendingCache = [];
 let popularCache = [];
+let searchCache = [];
 let lastCacheUpdate = 0;
 let isUpdating = false;
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
@@ -34,14 +34,23 @@ function getCachedTorrents(kind, userConfig = {}) {
   if (!isUpdating && (now - lastCacheUpdate > CACHE_DURATION)) {
     refreshCache(userConfig); // Trigger background refresh, but don't wait for it
   }
-  return kind === 'trending' ? trendingCache : popularCache;
+  if (kind === 'trending') return trendingCache;
+  if (kind === 'popular') return popularCache;
+  if (kind === 'search') return searchCache;
+  return [];
+}
+
+function setCachedTorrents(kind, torrents) {
+    if (kind === 'search') {
+        searchCache = torrents;
+    }
 }
 
 function getTorrents() {
-    return [...trendingCache, ...popularCache];
+    return [...trendingCache, ...popularCache, ...searchCache];
 }
 
 // Initial cache fill on startup
 const initialCachePromise = refreshCache();
 
-module.exports = { getCachedTorrents, getTorrents, refreshCache, initialCachePromise };
+module.exports = { getCachedTorrents, setCachedTorrents, getTorrents, refreshCache, initialCachePromise };
