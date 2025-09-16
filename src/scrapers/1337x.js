@@ -25,7 +25,10 @@ class Scraper1337x {
             const $ = cheerio.load(response.data);
             let magnetLink = $('a[href^="magnet:"]').attr('href');
             if (magnetLink) magnetLink = this.decodeHtmlEntities(magnetLink);
-            let posterEl = $('#description img.descrimg').first();
+            let posterEl = $('#description > p > a > img.descrimg').first();
+            if (!posterEl.length) {
+                posterEl = $('#description img.descrimg').first();
+            }
             let poster = posterEl.attr('data-original') || posterEl.attr('src');
             if (poster && !poster.startsWith('http')) poster = 'https:' + poster;
             return { magnetLink: magnetLink || null, poster: poster || null };
