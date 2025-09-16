@@ -1,9 +1,36 @@
 const axios = require('axios');
 const { parseStringPromise } = require('xml2js');
+const parseTorrent = require('parse-torrent');
+const { isCached, extractInfoHash } = require('../api/torbox');
 
 class ScraperJackett {
     constructor(userConfig = {}) {
         this.userConfig = userConfig;
+    }
+
+    async enrichTorrentsWithTorbox(torrents) {
+        if (!this.userConfig.torboxApiKey) {
+            return torrents;
+        }
+
+        const enrichedTorrents = await Promise.all(torrents.map(async torrent => {
+            if (!torrent.magnetLink) {
+                return torrent;
+            }
+
+            const infoHash = extractInfoHash(torrent.magnetLink);
+            if (!infoHash) {
+                return torrent;
+            }
+
+            const cacheResult = await isCached({ infoHash, token: this.userConfig.torboxApiKey });
+            return {
+                ...torrent,
+                cached: cacheResult.cached,
+            };
+        }));
+
+        return enrichedTorrents;
     }
 
     async search(query) {
@@ -35,7 +62,7 @@ class ScraperJackett {
                 return [];
             }
 
-            const torrents = items.map(item => {
+            let torrents = await Promise.all(items.map(async item => {
                 const torznabAttrs = item['torznab:attr'];
                 const seeders = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'seeders')?.$.value : '0';
                 const size = item.enclosure && item.enclosure[0] && item.enclosure[0].$.length ? parseInt(item.enclosure[0].$.length) : 0;
@@ -51,15 +78,30 @@ class ScraperJackett {
                     id = `js_${generateTorrentId(name, link)}`;
                 }
 
+                let magnetLink = null;
+                if (link) {
+                    try {
+                        const response = await axios.get(link, { responseType: 'arraybuffer', timeout: 15000 });
+                        const torrentFile = Buffer.from(response.data);
+                        const parsed = parseTorrent(torrentFile);
+                        magnetLink = parseTorrent.toMagnetURI(parsed);
+                    } catch (error) {
+                        console.error(`  -> Error downloading or parsing torrent file for ${link}: ${error.message}`);
+                    }
+                }
+
                 return {
                     id: id,
                     name: name,
                     link: link,
                     seeders: parseInt(seeders),
                     leechers: 0, // Torznab doesn't always provide leechers
-                    size: size
+                    size: size,
+                    magnetLink: magnetLink
                 };
-            });
+            }));
+
+            torrents = await this.enrichTorrentsWithTorbox(torrents);
 
             const topTorrents = torrents.slice(0, 25);
             console.log(`Found ${topTorrents.length} initial torrents.`);

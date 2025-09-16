@@ -64,20 +64,7 @@ class StreamHandler {
         return { streams: [] };
       }
 
-      let magnetLink = t.magnetLink;
-
-      if (!magnetLink && t.link) {
-        console.log(`⚙️ Downloading torrent file for: ${t.link}`);
-        try {
-            const axios = require('axios');
-            const response = await axios.get(t.link, { responseType: 'arraybuffer', timeout: 15000 });
-            const torrentFile = Buffer.from(response.data);
-            const parsed = parseTorrent(torrentFile);
-            magnetLink = parseTorrent.toMagnetURI(parsed);
-        } catch (error) {
-            console.error(`  -> Error downloading or parsing torrent file for ${t.link}: ${error.message}`);
-        }
-      }
+      const magnetLink = t.magnetLink;
 
       if (!magnetLink) {
         console.log('❌ Could not find magnet link for torrent:', t.name);
