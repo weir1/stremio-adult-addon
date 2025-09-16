@@ -24,8 +24,8 @@ class CatalogHandler {
       if (id === 'adult-search') {
         if (extra && extra.search) {
           if (userConfig.jackettUrl && userConfig.jackettApiKey) {
-            const ScraperJackett = require('../scrapers/jackett');
-            const scraper = new ScraperJackett(userConfig);
+            const scraper = require('../scrapers/jackett');
+            scraper.userConfig = userConfig;
             torrents = await scraper.search(extra.search);
           } else {
             const Scraper1337x = require('../scrapers/1337x');
