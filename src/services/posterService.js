@@ -122,9 +122,22 @@ class PosterService {
     mainText = mainText.substring(0, 25);
 
     let subText = '';
-    const sizeMatch = torrentInfo.size.match(/(\d+\.?\d*\s*(GB|MB))/i);
-    if (sizeMatch) subText += `${sizeMatch[1]}`;
-    if (torrentInfo.seeders > 0) subText += ` | 🌱${torrentInfo.seeders}`;
+    if (typeof torrentInfo.size === 'number' && torrentInfo.size > 0) {
+        const bytes = torrentInfo.size;
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        const sizeStr = parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        subText += sizeStr;
+    } else if (typeof torrentInfo.size === 'string') {
+        const sizeMatch = torrentInfo.size.match(/(\d+\.?\d*\s*(GB|MB))/i);
+        if (sizeMatch) subText += `${sizeMatch[1]}`;
+    }
+
+    if (torrentInfo.seeders > 0) {
+        if (subText) subText += ' | ';
+        subText += `🌱${torrentInfo.seeders}`;
+    }
 
     // Using a different placeholder service that allows more customization
     return `https://fakeimg.pl/300x450/${color}/?text=${encodeURIComponent(mainText)}&font_size=40&font=bebas&data=${encodeURIComponent(subText)}`;
