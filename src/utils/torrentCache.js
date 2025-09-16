@@ -12,7 +12,6 @@ async function refreshCache(userConfig = {}) {
   isUpdating = true;
   console.log('🔄 Refreshing torrent cache in the background...');
   try {
-    const Scraper1337x = require('../scrapers/1337x');
     const scraper = new Scraper1337x(userConfig);
     const [trending, popular] = await Promise.all([
       scraper.scrapeTrending(),

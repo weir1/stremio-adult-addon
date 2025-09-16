@@ -113,4 +113,4 @@ class ScraperJackett {
     }
 }
 
-module.exports = ScraperJackett;
+module.exports = new ScraperJackett();
