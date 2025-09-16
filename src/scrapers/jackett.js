@@ -62,7 +62,7 @@ class ScraperJackett {
                 return [];
             }
 
-            let torrents = await Promise.all(items.map(async item => {
+            let torrents = (await Promise.all(items.map(async item => {
                 const torznabAttrs = item['torznab:attr'];
                 const seeders = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'seeders')?.$.value : '0';
                 const size = item.enclosure && item.enclosure[0] && item.enclosure[0].$.length ? parseInt(item.enclosure[0].$.length) : 0;
@@ -82,21 +82,12 @@ class ScraperJackett {
                 const magnetAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl' || attr.$.name === 'magnet') : null;
                 if (magnetAttr) {
                     magnetLink = magnetAttr.$.value;
-                }
-
-                if (!magnetLink && link && link.startsWith('magnet:')) {
+                } else if (link && link.startsWith('magnet:')) {
                     magnetLink = link;
                 }
 
-                if (!magnetLink && link) {
-                    try {
-                        const response = await axios.get(link, { responseType: 'arraybuffer', timeout: 15000 });
-                        const torrentFile = Buffer.from(response.data);
-                        const parsed = parseTorrent(torrentFile);
-                        magnetLink = parseTorrent.toMagnetURI(parsed);
-                    } catch (error) {
-                        console.error(`  -> Error downloading or parsing torrent file for ${link}: ${error.message}`);
-                    }
+                if (!magnetLink) {
+                    return null;
                 }
 
                 return {
@@ -108,7 +99,7 @@ class ScraperJackett {
                     size: size,
                     magnetLink: magnetLink
                 };
-            }));
+            }))).filter(t => t !== null);
 
             torrents = await this.enrichTorrentsWithTorbox(torrents);
 
