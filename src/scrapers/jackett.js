@@ -80,26 +80,17 @@ class ScraperJackett {
                     }
 
                     let magnetLink = null;
+                    let torrentFileUrl = null;
                     const magnetAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl' || attr.$.name === 'magnet') : null;
                     if (magnetAttr) {
                         magnetLink = magnetAttr.$.value;
                     } else if (link && link.startsWith('magnet:')) {
                         magnetLink = link;
+                    } else if (link) {
+                        torrentFileUrl = link;
                     }
 
-                    if (!magnetLink && this.userConfig.jackettDownloadFallback && link) {
-                        try {
-                            console.log(`  -> Attempting to download .torrent file from: ${link}`)
-                            const response = await axios.get(link, { responseType: 'arraybuffer', timeout: 15000 });
-                            const torrentFile = Buffer.from(response.data);
-                            const parsed = parseTorrent(torrentFile);
-                            magnetLink = parseTorrent.toMagnetURI(parsed);
-                        } catch (error) {
-                            console.error(`  -> Error downloading or parsing torrent file for ${link}: ${error.message}`);
-                        }
-                    }
-
-                    if (!magnetLink) {
+                    if (!magnetLink && !torrentFileUrl) {
                         return null;
                     }
 
@@ -110,7 +101,8 @@ class ScraperJackett {
                         seeders: parseInt(seeders),
                         leechers: 0, // Torznab doesn't always provide leechers
                         size: size,
-                        magnetLink: magnetLink
+                        magnetLink: magnetLink,
+                        torrentFileUrl: torrentFileUrl
                     };
                 }));
             };

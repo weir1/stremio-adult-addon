@@ -64,6 +64,20 @@ class StreamHandler {
         return { streams: [] };
       }
 
+      if (!t.magnetLink && t.torrentFileUrl) {
+        console.log(`▶️ No magnet link for ${t.name}, downloading from ${t.torrentFileUrl}`);
+        try {
+            const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 20000 });
+            const torrentFile = Buffer.from(response.data);
+            const parsed = parseTorrent(torrentFile);
+            t.magnetLink = parseTorrent.toMagnetURI(parsed);
+            console.log(`✅ Magnet link generated for ${t.name}`);
+        } catch (error) {
+            console.error(`❌ Failed to download or parse .torrent file on-demand: ${error.message}`);
+            return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
+        }
+      }
+
       const magnetLink = t.magnetLink;
 
       if (!magnetLink) {
