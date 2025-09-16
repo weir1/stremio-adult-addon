@@ -10,6 +10,7 @@ class AddonHandler {
     this.userConfig = userConfig;
     const allTorrents = getTorrents();
     const idPrefixes = [...new Set(allTorrents.map(t => t.id.substring(0, 3)))];
+    idPrefixes.push('js_');
     const dynamicManifest = getManifest(idPrefixes);
     this.builder = new addonBuilder(dynamicManifest);
     this.setupHandlers();

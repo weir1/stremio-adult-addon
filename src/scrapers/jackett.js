@@ -44,11 +44,11 @@ class ScraperJackett {
 
                 let id;
                 if (item.guid && item.guid[0] && typeof item.guid[0] === 'string' && item.guid[0].trim() !== '') {
-                    id = `jackett:${item.guid[0]}`;
+                    id = `js_${item.guid[0]}`;
                 } else if (item.guid && item.guid[0] && item.guid[0]._ && typeof item.guid[0]._ === 'string' && item.guid[0]._.trim() !== '') {
-                    id = `jackett:${item.guid[0]._}`;
+                    id = `js_${item.guid[0]._}`;
                 } else {
-                    id = `jackett:${generateTorrentId(name, link)}`;
+                    id = `js_${generateTorrentId(name, link)}`;
                 }
 
                 return {
