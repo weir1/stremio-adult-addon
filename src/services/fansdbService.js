@@ -8,8 +8,8 @@ class FansDBService {
 
   async getTopPerformers(page = 1, limit = 20) {
     const query = `
-      query GetPerformers {
-        queryPerformers {
+      query GetPerformers($input: PerformerQueryInput!) {
+        queryPerformers(input: $input) {
           count
           performers {
             id
@@ -21,7 +21,14 @@ class FansDBService {
         }
       }
     `;
-    const { ok, data, error } = await graphQlQuery(query, {}, this.apiKey);
+    const variables = {
+      input: {
+        sort: "TRENDING",
+        limit: limit,
+        page: page
+      }
+    };
+    const { ok, data, error } = await graphQlQuery(query, variables, this.apiKey);
 
     if (ok && data?.queryPerformers?.performers) {
       return data.queryPerformers.performers.map(p => ({
