@@ -36,11 +36,6 @@ class PosterService {
         break;
       }
     }
-    
-    // Further clean the title if a studio was found
-    if (studio) {
-      title = title.split(' ').filter(word => isNaN(word)).join(' ');
-    }
 
     return {
       original: torrentName,
