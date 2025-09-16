@@ -1,8 +1,6 @@
 const { getCachedTorrents } = require('../utils/torrentCache');
 const { generatePoster } = require('../utils/posterGenerator');
 const FansDBService = require('../services/fansdbService');
-const parseTorrent = require('parse-torrent');
-const axios = require('axios');
 const Scraper1337x = require('../scrapers/1337x');
 const scraper = new Scraper1337x();
 
@@ -34,7 +32,6 @@ class MetaHandler {
         return { meta: { id, type: 'movie', name: 'Unknown item', genres: ['Adult'] } };
       }
 
-      // Poster fetching for 1337x
       if (id.startsWith('x_') && !t.poster) {
         console.log(`🖼️ 1337x item "${t.name}" is missing a poster. Fetching details...`);
         const details = await scraper.getTorrentDetails(t.link);
@@ -47,19 +44,23 @@ class MetaHandler {
       }
 
       const description = `💾 ${t.size} • 🌱 ${t.seeders} • 📥 ${t.leechers}`;
+      const posterData = await generatePoster(t.name, t, userConfig);
 
-      return {
-        meta: {
-          id: t.id,
-          type: 'movie',
-          name: t.name,
-          poster: await generatePoster(t.name, t, userConfig),
-          description: description,
-          genres: ['Adult'],
-          releaseInfo: `${t.seeders} seeders`,
-          imdbRating: '6.5' // This is a placeholder
-        }
+      const meta = {
+        id: t.id,
+        type: 'movie',
+        name: t.name,
+        poster: posterData.poster,
+        description: description,
+        genres: ['Adult'],
+        releaseInfo: `${t.seeders} seeders`,
       };
+
+      if (posterData.rating) {
+        meta.imdbRating = posterData.rating.toFixed(1);
+      }
+
+      return { meta };
     } catch (err) {
       console.error('❌ Meta error:', err);
       return { meta: null };

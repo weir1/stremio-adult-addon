@@ -1,4 +1,5 @@
 const { request } = require('undici');
+const cheerio = require('cheerio');
 
 class PosterService {
   constructor() {
@@ -6,7 +7,6 @@ class PosterService {
     this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
   }
 
-  // Enhanced search term extraction
   extractSearchTerms(torrentName) {
     let cleaned = torrentName
       .replace(/\.(mp4|mkv|avi|wmv|mov)$/i, '')
@@ -24,12 +24,8 @@ class PosterService {
     };
   }
 
-  // Search ThePornDB with a more focused query
   async searchThePornDB(searchQuery, apiKey) {
-    if (!apiKey) {
-      return null;
-    }
-
+    if (!apiKey) return null;
     try {
       const term = searchQuery.substring(0, 50);
       console.log(`🔍 Searching ThePornDB for: "${term}"`);
@@ -39,7 +35,7 @@ class PosterService {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'User-Agent': 'Stremio-Adult-Addon/1.3.1'
+          'User-Agent': 'Stremio-Adult-Addon/1.4.0'
         },
         body: JSON.stringify({
           query: `
@@ -47,6 +43,7 @@ class PosterService {
               searchScene(term: $term, limit: 1) {
                 id
                 title
+                rating
                 images {
                   url
                 }
@@ -70,7 +67,9 @@ class PosterService {
       const scene = result.data?.searchScene?.[0];
       if (scene && scene.images && scene.images.length > 0 && scene.images[0].url) {
         console.log(`✅ Found ThePornDB poster for "${scene.title}"`);
-        return scene.images[0].url;
+        const rating = scene.rating ? parseFloat(scene.rating) : null;
+        if (rating) console.log(`  • Rating: ${rating}/10`);
+        return { poster: scene.images[0].url, rating: rating };
       }
 
       console.log(`  - No results from ThePornDB for "${term}"`);
@@ -81,7 +80,36 @@ class PosterService {
     }
   }
 
-  // Generate enhanced poster with better styling and information
+  async scrapePosterFromUrl(url) {
+    if (!url) return null;
+    try {
+      console.log(`🖼️ Scraping for poster on page: ${url}`);
+      const response = await request(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const html = await response.body.text();
+      const $ = cheerio.load(html);
+
+      let posterUrl = $('img.postImg').attr('src');
+
+      if (posterUrl) {
+        console.log(`  ✅ Found poster via scraping: ${posterUrl}`);
+        if (posterUrl.startsWith('//')) {
+          posterUrl = 'https:' + posterUrl;
+        } else if (posterUrl.startsWith('/')) {
+          const urlObj = new URL(url);
+          posterUrl = urlObj.origin + posterUrl;
+        }
+        return posterUrl;
+      }
+      console.log('  🟡 No poster found via scraping.');
+      return null;
+    } catch (error) {
+      console.error(`❌ Error scraping page ${url}: ${error.message}`);
+      return null;
+    }
+  }
+
   generateEnhancedPoster(torrentName, torrentInfo) {
     const { studio, cleaned } = this.extractSearchTerms(torrentName);
     
@@ -96,14 +124,7 @@ class PosterService {
     mainText = mainText.substring(0, 25);
 
     let subText = '';
-    if (typeof torrentInfo.size === 'number' && torrentInfo.size > 0) {
-        const bytes = torrentInfo.size;
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        const sizeStr = parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        subText += sizeStr;
-    } else if (typeof torrentInfo.size === 'string') {
+    if (typeof torrentInfo.size === 'string') {
         const sizeMatch = torrentInfo.size.match(/(\d+\.?\d*\s*(GB|MB))/i);
         if (sizeMatch) subText += `${sizeMatch[1]}`;
     }
@@ -113,42 +134,46 @@ class PosterService {
         subText += `🌱${torrentInfo.seeders}`;
     }
 
-    // Using a different placeholder service that allows more customization
-    return `https://fakeimg.pl/300x450/${color}/?text=${encodeURIComponent(mainText)}&font_size=40&font=bebas&data=${encodeURIComponent(subText)}`;
+    const posterUrl = `https://fakeimg.pl/300x450/${color}/?text=${encodeURIComponent(mainText)}&font_size=40&font=bebas&data=${encodeURIComponent(subText)}`;
+    return { poster: posterUrl, rating: null };
   }
 
-  // Main method to get poster
   async getPosterUrl(torrentName, torrentInfo, userConfig = {}) {
-    const cacheKey = `poster_${torrentName}`;
+    const cacheKey = `poster_v2_${torrentName}`;
     const cached = this.cache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < this.cacheExpiry) {
-      return cached.url;
+      return cached.data;
     }
 
-    let posterUrl = null;
+    let posterData = null;
     try {
       if (userConfig.enableThePornDB && userConfig.theporndbApiKey) {
         const { searchQuery } = this.extractSearchTerms(torrentName);
-        posterUrl = await this.searchThePornDB(searchQuery, userConfig.theporndbApiKey);
+        posterData = await this.searchThePornDB(searchQuery, userConfig.theporndbApiKey);
         await new Promise(resolve => setTimeout(resolve, 250)); // Rate limit
       }
 
-      // 2nd fallback: Use poster scraped from 1337x
-      if (!posterUrl && torrentInfo.poster) {
+      if (!posterData && torrentInfo.poster) {
         console.log(`✅ Using 1337x poster for "${torrentName.substring(0, 30)}"`);
-        posterUrl = torrentInfo.poster;
+        posterData = { poster: torrentInfo.poster, rating: null };
       }
 
-      // 3rd fallback: Generate a placeholder
-      if (!posterUrl) {
-        posterUrl = this.generateEnhancedPoster(torrentName, torrentInfo);
+      if (!posterData && torrentInfo.link) {
+        const scrapedPoster = await this.scrapePosterFromUrl(torrentInfo.link);
+        if (scrapedPoster) {
+          posterData = { poster: scrapedPoster, rating: null };
+        }
+      }
+
+      if (!posterData) {
+        posterData = this.generateEnhancedPoster(torrentName, torrentInfo);
       }
       
-      this.cache.set(cacheKey, { url: posterUrl, timestamp: Date.now() });
-      return posterUrl;
+      this.cache.set(cacheKey, { data: posterData, timestamp: Date.now() });
+      return posterData;
     } catch (error) {
       console.error('❌ Poster service error:', error);
-      return this.generateEnhancedPoster(torrentName, torrentInfo); // Fallback on error
+      return this.generateEnhancedPoster(torrentName, torrentInfo);
     }
   }
 }

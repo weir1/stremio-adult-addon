@@ -96,12 +96,13 @@ class StreamHandler {
         });
 
         if (torboxService) {
-          console.log('  ℹ️ TorBox is enabled. Processing streams in parallel...');
-          const torboxPromises = videoFiles.map(file => 
-            torboxService.processStream(magnetLink, t, file.name)
-          );
-          const torboxStreams = await Promise.all(torboxPromises);
-          streams.push(...torboxStreams.filter(s => s));
+          console.log('  ℹ️ TorBox is enabled. Processing streams sequentially to avoid rate limits...');
+          for (const file of videoFiles) {
+            const torboxStream = await torboxService.processStream(magnetLink, t, file.name);
+            if (torboxStream) {
+              streams.push(torboxStream);
+            }
+          }
         }
 
       } else {
