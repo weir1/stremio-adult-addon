@@ -10,7 +10,8 @@ class Scraper1337x {
         const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
         const cleanLink = link.replace(/[^a-zA-Z0-9]/g, '');
         const combined = cleanName + '_' + cleanLink;
-        return Buffer.from(combined).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+        const hash = Buffer.from(combined).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+        return `x_${hash}`;
     }
 
     decodeHtmlEntities(str) {

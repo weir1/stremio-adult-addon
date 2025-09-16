@@ -9,7 +9,7 @@ class AddonHandler {
   constructor(userConfig = {}) {
     this.userConfig = userConfig;
     const allTorrents = getTorrents();
-    const idPrefixes = ['js_', 'x_'];
+    const idPrefixes = ['js_', 'x_', 'fansdb:', 'fansdb-scene:'];
     const dynamicManifest = getManifest(idPrefixes);
     this.builder = new addonBuilder(dynamicManifest);
     this.setupHandlers();
