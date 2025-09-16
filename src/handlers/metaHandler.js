@@ -34,34 +34,19 @@ class MetaHandler {
         return { meta: { id, type: 'movie', name: 'Unknown item', genres: ['Adult'] } };
       }
 
-      if (id.startsWith('x_') && !t.magnetLink) {
+      // Poster fetching for 1337x
+      if (id.startsWith('x_') && !t.poster) {
+        console.log(`🖼️ 1337x item "${t.name}" is missing a poster. Fetching details...`);
         const details = await scraper.getTorrentDetails(t.link);
-        t.magnetLink = details.magnetLink;
-        t.poster = details.poster;
-      }
-
-      let description = `💾 ${t.size} • 🌱 ${t.seeders} • 📥 ${t.leechers}`;
-      let parsedTorrent;
-
-      if (!t.magnetLink && t.torrentFileUrl) {
-        try {
-            const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 5000 });
-            const torrentFile = Buffer.from(response.data);
-            parsedTorrent = parseTorrent(torrentFile);
-        } catch (error) {
-            console.error(`❌ Failed to download .torrent file for meta: ${error.message}`);
-        }
-      } else if (t.magnetLink) {
-        parsedTorrent = parseTorrent(t.magnetLink);
-      }
-
-      if (parsedTorrent && parsedTorrent.files) {
-        const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-        const videoFiles = parsedTorrent.files.filter(f => videoExtensions.some(ext => f.name.endsWith(ext)));
-        if (videoFiles.length > 1) {
-          description += `\n\n🎬 Contains ${videoFiles.length} video files.`;
+        if (details.poster) {
+          t.poster = details.poster;
+          console.log(`  ✅ Found poster: ${details.poster}`);
+        } else {
+          console.log(`  🟡 No poster found on details page.`);
         }
       }
+
+      const description = `💾 ${t.size} • 🌱 ${t.seeders} • 📥 ${t.leechers}`;
 
       return {
         meta: {
@@ -72,7 +57,7 @@ class MetaHandler {
           description: description,
           genres: ['Adult'],
           releaseInfo: `${t.seeders} seeders`,
-          imdbRating: '6.5'
+          imdbRating: '6.5' // This is a placeholder
         }
       };
     } catch (err) {
@@ -83,4 +68,3 @@ class MetaHandler {
 }
 
 module.exports = new MetaHandler();
-

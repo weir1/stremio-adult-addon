@@ -15,8 +15,9 @@ class TorBoxService {
         const torrents = res.data?.data || [];
         let clearedCount = 0;
         for (const torrent of torrents) {
-            if (torrent.status === 'downloaded') {
-                console.log(`  -> Deleting completed torrent: ${torrent.name}`);
+            const toDelete = torrent.status === 'downloaded' || torrent.status === 'seeding';
+            if (toDelete) {
+                console.log(`  -> Deleting torrent in state '${torrent.status}': ${torrent.name}`);
                 await deleteTorrent({ torrentId: torrent.id, token: this.apiKey });
                 clearedCount++;
             }

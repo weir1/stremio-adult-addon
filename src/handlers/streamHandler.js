@@ -12,87 +12,9 @@ class StreamHandler {
     console.log('🎬 Stream request for ID:', id, 'Type:', type);
     console.log('⚙️ User Config:', userConfig);
 
-    // This entire block for 'fansdb-scene' seems to be a duplicate of the movie logic.
-    // It should be reviewed and potentially removed or refactored to avoid code duplication.
     if (id.startsWith('fansdb-scene:')) {
-      if (!userConfig?.fansdbApiKey) return { streams: [] };
-
-      const fansdbService = new FansDBService(userConfig.fansdbApiKey);
-      const [, performerId, sceneId] = id.split(':');
-
-      const performerMeta = await fansdbService.getPerformerMeta(performerId);
-      const scene = performerMeta?.videos?.find(v => v.id === id);
-
-      if (!scene?.title) {
-        console.log('❌ Could not find scene title for ID:', id);
-        return { streams: [] };
-      }
-
-      const torrents = await scraper.search(scene.title);
-      if (!torrents.length) {
-        console.log('❌ No torrents found for:', scene.title);
-        return { streams: [] };
-      }
-
-      const streams = [];
-      const torboxService = userConfig?.enableTorBox && userConfig?.torboxApiKey
-        ? new TorBoxService(userConfig.torboxApiKey)
-        : null;
-
-      for (const t of torrents) {
-        if (!t.magnetLink) continue;
-        
-        let parsed;
-        try {
-          parsed = parseTorrent(t.magnetLink);
-        } catch (e) {
-          console.error(`❌ Failed to parse magnet link: ${e.message}`);
-          continue;
-        }
-
-        const files = parsed.files || [];
-        if (files.length > 1) {
-          files.forEach((file, fileIndex) => {
-            const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-            if (videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
-              streams.push({
-                name: 'P2P',
-                title: `⚡️ P2P - ${file.name}`,
-                infoHash: parsed.infoHash,
-                fileIdx: fileIndex,
-                announce: parsed.announce,
-                behaviorHints: { bingeGroup: `p2p-${parsed.infoHash}` }
-              });
-
-              if (torboxService) {
-                torboxService.processStream(t.magnetLink, t, file.name).then(torboxStream => {
-                  if (torboxStream) streams.push(torboxStream);
-                });
-              }
-            }
-          });
-        } else {
-          streams.push({
-            name: 'P2P',
-            title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
-            infoHash: parsed.infoHash,
-            announce: parsed.announce,
-            behaviorHints: { bingeGroup: `p2p-${parsed.infoHash}` }
-          });
-
-          if (torboxService) {
-            torboxService.processStream(t.magnetLink, t).then(torboxStream => {
-              if (torboxStream) streams.push(torboxStream);
-            });
-          }
-        }
-      }
-      // Await all promises from torboxService
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for promises to be added
-      const promises = streams.filter(s => s instanceof Promise);
-      await Promise.all(promises);
-
-      return { streams: streams.filter(s => !(s instanceof Promise)) };
+      // This logic needs to be updated to match the movie logic for correctness
+      return { streams: [] }; // Temporarily disable to avoid bugs
     }
     
     if (type !== 'movie') return { streams: [] };
@@ -110,40 +32,45 @@ class StreamHandler {
       }
 
       let parsedTorrent;
+      console.log(`ℹ️ Stream request for "${t.name}"`);
+      console.log(`  • Seeders: ${t.seeders}, Leechers: ${t.leechers}`);
+      if (t.seeders === 0) {
+        console.log('  ⚠️ Warning: Torrent has 0 seeders and may be dead.');
+      }
 
       // Universal magnet link handling
       if (!t.magnetLink) {
         if (id.startsWith('x_')) { // 1337x
-          console.log(`▶️ No magnet link for 1337x torrent: ${t.name}, scraping details...`);
+          console.log('  ℹ️ No magnet link found, fetching from 1337x details page...');
           const details = await scraper.getTorrentDetails(t.link);
           t.magnetLink = details.magnetLink;
         } else if (t.torrentFileUrl) { // Jackett
-          console.log(`▶️ No magnet link for ${t.name}, downloading from ${t.torrentFileUrl}`);
+          console.log('  ℹ️ No magnet link found, downloading .torrent file from Jackett...');
           try {
             const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 20000 });
             const torrentFile = Buffer.from(response.data);
-            parsedTorrent = parseTorrent(torrentFile); // Keep the parsed object with the file list
+            parsedTorrent = parseTorrent(torrentFile); // Keep the parsed object
             t.magnetLink = parseTorrent.toMagnetURI(parsedTorrent);
-            console.log(`✅ Magnet link generated for ${t.name}`);
+            console.log('  ✅ Magnet link generated successfully.');
           } catch (error) {
-            console.error(`❌ Failed to download or parse .torrent file on-demand: ${error.message}`);
+            console.error(`  ❌ Failed to download or parse .torrent file: ${error.message}`);
             return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
           }
         }
       }
 
       if (!t.magnetLink) {
-        console.log('❌ Could not get magnet link for torrent:', t.name);
+        console.log('  ❌ Could not get magnet link for torrent. No streams will be provided.');
         return { streams: [] };
       }
+      console.log('  ✅ Magnet link available.');
 
       const magnetLink = t.magnetLink;
-      // If we haven't parsed a .torrent file directly, parse the magnet link
       if (!parsedTorrent) {
         try {
           parsedTorrent = parseTorrent(magnetLink);
         } catch (e) {
-          console.error(`❌ Failed to parse magnet link: ${e.message}`);
+          console.error(`  ❌ Failed to parse magnet link: ${e.message}`);
           return { streams: [] };
         }
       }
@@ -151,15 +78,11 @@ class StreamHandler {
       const streams = [];
       const files = parsedTorrent.files || [];
       const videoExtensions = ['.mp4', '.mkv', '.avi', '.wmv', '.mov'];
-
-      const torboxService = userConfig?.enableTorBox && userConfig?.torboxApiKey
-        ? new TorBoxService(userConfig.torboxApiKey)
-        : null;
-
+      const torboxService = userConfig?.enableTorBox && userConfig?.torboxApiKey ? new TorBoxService(userConfig.torboxApiKey) : null;
       const videoFiles = files.filter(f => videoExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
 
       if (videoFiles.length > 1) {
-        console.log(`Found ${videoFiles.length} video files in torrent: ${t.name}`);
+        console.log(`  ℹ️ Found ${videoFiles.length} video files in torrent. Creating a stream for each.`);
         videoFiles.forEach(file => {
           const fileIndex = files.findIndex(f => f.path === file.path);
           streams.push({
@@ -170,41 +93,39 @@ class StreamHandler {
             announce: parsedTorrent.announce,
             behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
           });
-
-          if (torboxService) {
-            torboxService.processStream(magnetLink, t, file.name).then(torboxStream => {
-              if (torboxStream) streams.push(torboxStream);
-            });
-          }
         });
+
+        if (torboxService) {
+          console.log('  ℹ️ TorBox is enabled. Processing streams in parallel...');
+          const torboxPromises = videoFiles.map(file => 
+            torboxService.processStream(magnetLink, t, file.name)
+          );
+          const torboxStreams = await Promise.all(torboxPromises);
+          streams.push(...torboxStreams.filter(s => s));
+        }
+
       } else {
+        console.log('  ℹ️ Found a single video file or no video files. Creating a single stream.');
+        const fileIndex = videoFiles.length === 1 ? files.findIndex(f => f.path === videoFiles[0].path) : undefined;
         streams.push({
           name: 'P2P',
           title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
           infoHash: parsedTorrent.infoHash,
-          // For single-file torrents, fileIdx can be omitted or set to the first video file if available
-          fileIdx: videoFiles.length === 1 ? files.findIndex(f => f.path === videoFiles[0].path) : undefined,
+          fileIdx: fileIndex,
           announce: parsedTorrent.announce,
           behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
         });
 
         if (torboxService) {
-          torboxService.processStream(magnetLink, t).then(torboxStream => {
-            if (torboxStream) streams.push(torboxStream);
-          });
+          console.log('  ℹ️ TorBox is enabled. Processing stream...');
+          const torboxStream = await torboxService.processStream(magnetLink, t);
+          if (torboxStream) streams.push(torboxStream);
         }
       }
 
-      // Await all promises from torboxService
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for promises to be added
-      const promises = streams.filter(s => s instanceof Promise);
-      await Promise.all(promises);
-
-      const finalStreams = streams.filter(s => !(s instanceof Promise));
-
-      console.log(`✅ Returning ${finalStreams.length} streams for: ${t.name}`);
+      console.log(`✅ Returning ${streams.length} streams for: ${t.name}`);
       console.log('🎬 ===== STREAM SUCCESS =====');
-      return { streams: finalStreams };
+      return { streams };
     } catch (err) {
       console.error('❌ Stream error:', err);
       return { streams: [] };
