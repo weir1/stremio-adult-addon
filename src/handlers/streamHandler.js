@@ -49,12 +49,32 @@ class StreamHandler {
           try {
             const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 20000 });
             const torrentFile = Buffer.from(response.data);
-            parsedTorrent = parseTorrent(torrentFile); // Keep the parsed object
+            parsedTorrent = parseTorrent(torrentFile);
             t.magnetLink = parseTorrent.toMagnetURI(parsedTorrent);
-            console.log('  ✅ Magnet link generated successfully.');
+            console.log('  ✅ Magnet link generated successfully from Jackett link.');
           } catch (error) {
-            console.error(`  ❌ Failed to download or parse .torrent file: ${error.message}`);
-            return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
+            if (error.response && error.response.status === 404) {
+              console.log('  ⚠️ Jackett download link failed (404). Trying fallback with GUID URL...');
+              if (t.id.startsWith('js_http')) {
+                const guidUrl = t.id.substring(3);
+                try {
+                  const fallbackResponse = await axios.get(guidUrl, { responseType: 'arraybuffer', timeout: 20000 });
+                  const torrentFile = Buffer.from(fallbackResponse.data);
+                  parsedTorrent = parseTorrent(torrentFile);
+                  t.magnetLink = parseTorrent.toMagnetURI(parsedTorrent);
+                  console.log('  ✅ Magnet link generated successfully from GUID fallback.');
+                } catch (fallbackError) {
+                  console.error(`  ❌ Fallback download from GUID failed: ${fallbackError.message}`);
+                  return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
+                }
+              } else {
+                  console.error(`  ❌ Jackett download failed and no GUID URL fallback available: ${error.message}`);
+                  return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
+              }
+            } else {
+              console.error(`  ❌ Failed to download or parse .torrent file: ${error.message}`);
+              return { streams: [{ name: "Error", title: "Failed to download torrent file", url: "#" }] };
+            }
           }
         }
       }
