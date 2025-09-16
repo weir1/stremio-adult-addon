@@ -51,6 +51,8 @@ class ScraperJackett {
                     id = `js_${generateTorrentId(name, link)}`;
                 }
 
+                const magnetLink = item.enclosure && item.enclosure[0] && item.enclosure[0].$.url ? item.enclosure[0].$.url : link;
+
                 return {
                     id: id,
                     name: name,
@@ -58,7 +60,7 @@ class ScraperJackett {
                     seeders: parseInt(seeders),
                     leechers: 0, // Torznab doesn't always provide leechers
                     size: size,
-                    magnetLink: item.link[0]
+                    magnetLink: magnetLink
                 };
             });
 
