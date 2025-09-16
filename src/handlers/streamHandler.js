@@ -66,8 +66,8 @@ class StreamHandler {
 
       let magnetLink = t.magnetLink;
 
-      if ((id.startsWith('jackett:') || id.startsWith('js_')) && t.link && !t.link.startsWith('magnet:')) {
-        console.log(`⚙️ Downloading torrent file for jackett torrent: ${t.link}`);
+      if (!magnetLink && t.link) {
+        console.log(`⚙️ Downloading torrent file for: ${t.link}`);
         try {
             const axios = require('axios');
             const response = await axios.get(t.link, { responseType: 'arraybuffer', timeout: 15000 });

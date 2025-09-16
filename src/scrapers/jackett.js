@@ -51,17 +51,13 @@ class ScraperJackett {
                     id = `js_${generateTorrentId(name, link)}`;
                 }
 
-                const magnetUrlAttr = torznabAttrs ? torznabAttrs.find(attr => attr.$.name === 'magneturl') : null;
-                const magnetLink = magnetUrlAttr ? magnetUrlAttr.$.value : link;
-
                 return {
                     id: id,
                     name: name,
                     link: link,
                     seeders: parseInt(seeders),
                     leechers: 0, // Torznab doesn't always provide leechers
-                    size: size,
-                    magnetLink: magnetLink
+                    size: size
                 };
             });
 
