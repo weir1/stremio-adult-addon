@@ -12,6 +12,8 @@ class StreamHandler {
     console.log('🎬 Stream request for ID:', id, 'Type:', type);
     console.log('⚙️ User Config:', userConfig);
 
+    // This entire block for 'fansdb-scene' seems to be a duplicate of the movie logic.
+    // It should be reviewed and potentially removed or refactored to avoid code duplication.
     if (id.startsWith('fansdb-scene:')) {
       if (!userConfig?.fansdbApiKey) return { streams: [] };
 
@@ -107,6 +109,8 @@ class StreamHandler {
         return { streams: [] };
       }
 
+      let parsedTorrent;
+
       // Universal magnet link handling
       if (!t.magnetLink) {
         if (id.startsWith('x_')) { // 1337x
@@ -118,8 +122,8 @@ class StreamHandler {
           try {
             const response = await axios.get(t.torrentFileUrl, { responseType: 'arraybuffer', timeout: 20000 });
             const torrentFile = Buffer.from(response.data);
-            const parsed = parseTorrent(torrentFile);
-            t.magnetLink = parseTorrent.toMagnetURI(parsed);
+            parsedTorrent = parseTorrent(torrentFile); // Keep the parsed object with the file list
+            t.magnetLink = parseTorrent.toMagnetURI(parsedTorrent);
             console.log(`✅ Magnet link generated for ${t.name}`);
           } catch (error) {
             console.error(`❌ Failed to download or parse .torrent file on-demand: ${error.message}`);
@@ -134,12 +138,14 @@ class StreamHandler {
       }
 
       const magnetLink = t.magnetLink;
-      let parsedTorrent;
-      try {
-        parsedTorrent = parseTorrent(magnetLink);
-      } catch (e) {
-        console.error(`❌ Failed to parse magnet link: ${e.message}`);
-        return { streams: [] };
+      // If we haven't parsed a .torrent file directly, parse the magnet link
+      if (!parsedTorrent) {
+        try {
+          parsedTorrent = parseTorrent(magnetLink);
+        } catch (e) {
+          console.error(`❌ Failed to parse magnet link: ${e.message}`);
+          return { streams: [] };
+        }
       }
       
       const streams = [];
@@ -150,24 +156,25 @@ class StreamHandler {
         ? new TorBoxService(userConfig.torboxApiKey)
         : null;
 
-      if (files.length > 1) {
-        console.log(`Found ${files.length} video files in torrent: ${t.name}`);
-        files.forEach((file, fileIndex) => {
-          if (videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
-            streams.push({
-              name: 'P2P',
-              title: `⚡️ P2P - ${file.name}`,
-              infoHash: parsedTorrent.infoHash,
-              fileIdx: fileIndex,
-              announce: parsedTorrent.announce,
-              behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
-            });
+      const videoFiles = files.filter(f => videoExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
 
-            if (torboxService) {
-              torboxService.processStream(magnetLink, t, file.name).then(torboxStream => {
-                if (torboxStream) streams.push(torboxStream);
-              });
-            }
+      if (videoFiles.length > 1) {
+        console.log(`Found ${videoFiles.length} video files in torrent: ${t.name}`);
+        videoFiles.forEach(file => {
+          const fileIndex = files.findIndex(f => f.path === file.path);
+          streams.push({
+            name: 'P2P',
+            title: `⚡️ P2P - ${file.name}`,
+            infoHash: parsedTorrent.infoHash,
+            fileIdx: fileIndex,
+            announce: parsedTorrent.announce,
+            behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
+          });
+
+          if (torboxService) {
+            torboxService.processStream(magnetLink, t, file.name).then(torboxStream => {
+              if (torboxStream) streams.push(torboxStream);
+            });
           }
         });
       } else {
@@ -175,6 +182,8 @@ class StreamHandler {
           name: 'P2P',
           title: `⚡️ P2P - ${t.size} (${t.seeders || 0}S)`,
           infoHash: parsedTorrent.infoHash,
+          // For single-file torrents, fileIdx can be omitted or set to the first video file if available
+          fileIdx: videoFiles.length === 1 ? files.findIndex(f => f.path === videoFiles[0].path) : undefined,
           announce: parsedTorrent.announce,
           behaviorHints: { bingeGroup: `p2p-${parsedTorrent.infoHash}` }
         });
